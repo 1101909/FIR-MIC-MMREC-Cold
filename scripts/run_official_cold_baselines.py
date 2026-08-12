@@ -58,9 +58,9 @@ def run_clcrec(data,dataset,epochs,batch,seed):
  clc=ROOT/'external/CLCRec';sys.path.insert(0,str(clc));from model_CLCRec import CLCRec
  _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset); order=sorted(warm)+sorted(val)+sorted(test); imap={x:j for j,x in enumerate(order)};users=sorted({u for u,_ in pairs}|{r.user for r in valid}|{r.user for r in tests});umap={x:j for j,x in enumerate(users)}
  mapped=[(umap[u],imap[i]) for u,i in pairs];seen={u:set() for u in range(len(users))}
-  for u,i in mapped:seen[u].add(i)
+ for u,i in mapped:seen[u].add(i)
  image=torch.tensor(l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda');text=torch.tensor(l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda')
-  neg=min(200,max(1,len(warm)-1)); model=CLCRec(len(users),len(order),len(warm),mapped,.1,64,image,None,text,.07,neg,.5,False,.5).cuda();opt=torch.optim.Adam(model.parameters(),lr=1e-3);loader=DataLoader(PairDS(mapped,len(users),len(warm),seen,neg,seed),batch_size=batch,shuffle=True)
+ neg=min(200,max(1,len(warm)-1)); model=CLCRec(len(users),len(order),len(warm),mapped,.1,64,image,None,text,.07,neg,.5,False,.5).cuda();opt=torch.optim.Adam(model.parameters(),lr=1e-3);loader=DataLoader(PairDS(mapped,len(users),len(warm),seen,neg,seed),batch_size=batch,shuffle=True)
  model.train()
  for _ in range(epochs):
   for u,i in loader:opt.zero_grad();loss,_,_=model.loss(u.cuda(),i.cuda());loss.backward();opt.step()
