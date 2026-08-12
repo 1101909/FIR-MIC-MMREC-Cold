@@ -45,6 +45,15 @@ def main():
     parser.add_argument("--seeds", nargs="+", type=int, default=[2022])
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument("--grid-intents", nargs="+", type=int, default=[32, 64])
+    parser.add_argument("--grid-dims", nargs="+", type=int, default=[64])
+    parser.add_argument("--grid-learning-rates", nargs="+", type=float,
+                        default=[5e-4, 1e-3])
+    parser.add_argument("--grid-weight-decays", nargs="+", type=float, default=[1e-4])
+    parser.add_argument("--grid-dropouts", nargs="+", type=float, default=[0.15])
+    parser.add_argument("--grid-router-dropouts", nargs="+", type=float, default=[0.10])
+    parser.add_argument("--grid-patience", type=int, default=5)
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--run-controlled-content-baselines", action="store_true")
     parser.add_argument("--run-official-cold-baselines", action="store_true")
     parser.add_argument("--extended-ablations", action="store_true")
@@ -77,11 +86,24 @@ def main():
 
     for dataset in args.datasets:
         for seed in args.seeds:
+            run_dir = out / "fir_mic" / dataset / f"seed_{seed}"
+            if (args.resume and (run_dir / "result.json").exists()
+                    and (run_dir / "optimal_config.json").exists()):
+                print("Resume: completed FIR-MIC run exists at", run_dir, flush=True)
+                continue
             run([
                 sys.executable, "hier_bridge/run_fir_mic_seed.py",
                 "--data-dir", data, "--dataset", dataset, "--seed", seed,
                 "--epochs", args.epochs, "--batch-size", args.batch_size,
-                "--output-dir", out / "fir_mic" / dataset / f"seed_{seed}",
+                "--grid-intents", *args.grid_intents,
+                "--grid-dims", *args.grid_dims,
+                "--grid-learning-rates", *args.grid_learning_rates,
+                "--grid-weight-decays", *args.grid_weight_decays,
+                "--grid-dropouts", *args.grid_dropouts,
+                "--grid-router-dropouts", *args.grid_router_dropouts,
+                "--grid-patience", args.grid_patience,
+                "--output-dir", run_dir,
+                *( ["--resume"] if args.resume else [] ),
                 *(["--extended-ablations"] if args.extended_ablations else []),
             ])
 

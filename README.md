@@ -28,6 +28,14 @@ python kaggle/run_gpu.py \
   --datasets baby clothing sports \
   --seeds 2022 2023 2024 2025 2026 2027 2028 2029 2030 2031 \
   --epochs 20 --batch-size 256 \
+  --grid-intents 32 64 \
+  --grid-dims 64 \
+  --grid-learning-rates 0.0005 0.001 \
+  --grid-weight-decays 0.0001 \
+  --grid-dropouts 0.15 \
+  --grid-router-dropouts 0.10 \
+  --grid-patience 5 \
+  --resume \
   --run-controlled-content-baselines \
   --run-official-cold-baselines \
   --extended-ablations
@@ -45,6 +53,34 @@ For a first GPU check:
 ```bash
 python kaggle/run_gpu.py --datasets baby --seeds 2022 --epochs 1 --batch-size 256
 ```
+
+## FIR-MIC hyperparameter and epoch selection
+
+For every dataset and seed, FIR-MIC evaluates the Cartesian product supplied by
+the `--grid-*` arguments. `--epochs` is the maximum epoch considered in each
+trial, and `--grid-patience` stops a trial after consecutive epochs without an
+improvement. Selection is lexicographic on validation NDCG@10, Recall@10, then
+MRR@10, with the earlier epoch used to break an exact tie.
+
+Neither cold test interactions nor test metrics are accessed during this
+search. After selecting the hyperparameters and epoch, the runner creates a new
+model from the same deterministic seed, retrains it for exactly `best_epoch`,
+locks the score-level weights on validation, and evaluates the test split once.
+Each `results/fir_mic/<dataset>/seed_<seed>/` directory contains:
+
+- `hyperparameter_grid.csv`: every evaluated trial/epoch and validation score;
+- `hyperparameter_trials.csv`: the best epoch of every hyperparameter trial;
+- `optimal_config.json`: selected architecture, optimizer, epoch, score weights,
+  and confirmatory validation metrics;
+- `training.csv`: the fresh confirmatory fit;
+- `model.pt`: final state dict together with the complete optimal configuration.
+
+With `--resume`, completed runs are skipped and completed search trials are
+restored from `search_checkpoints/trial_*.json`. If Kaggle stops during a trial,
+only that unfinished trial is repeated; earlier trials are not lost.
+
+The default grid has four trials (2 intent counts × 2 learning rates). Expand
+the list arguments only when the available GPU budget permits it.
 
 ## Fair-baseline policy
 
@@ -100,6 +136,8 @@ cross-seed tables are saved under `results/evidence/`:
   confidence intervals, and effect sizes;
 - `protocol_mean_std.csv`, `transition_mean_std.csv`, and
   `efficiency_mean_std.csv`.
+- `optimal_configs_by_seed.csv` and `hyperparameter_trials_by_seed.csv` for a
+  complete audit of model and epoch selection.
 
 Additional RQ3 tables include past versus future performance, future-state
 quality, history-length groups, and interest-diversity groups. Legacy SEMCo

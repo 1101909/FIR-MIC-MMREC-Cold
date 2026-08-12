@@ -196,6 +196,38 @@ def collect_ablations(results):
     return aggregate(rows, ("dataset", "variant")) if rows else []
 
 
+def collect_hyperparameters(results):
+    selected, trials = [], []
+    for path in results.glob("fir_mic/*/seed_*/optimal_config.json"):
+        dataset = path.parents[1].name
+        seed = int(path.parent.name.split("_")[-1])
+        data = json.loads(path.read_text(encoding="utf8"))
+        row = {
+            "dataset": dataset, "seed": seed,
+            **{key: data[key] for key in (
+                "trial", "intents", "dim", "learning_rate", "weight_decay",
+                "dropout", "router_dropout", "best_epoch", "search_max_epochs",
+                "grid_patience", "search_seconds", "completed_trials", "total_trials",
+            ) if key in data},
+            "selection_split": data.get("selection_split"),
+            "selection_metric": data.get("selection_metric"),
+        }
+        row.update({f"selected_validation_{key}": value
+                    for key, value in data.get("selected_validation", {}).items()})
+        row.update({f"confirmatory_validation_{key}": value
+                    for key, value in data.get("confirmatory_validation", {}).items()})
+        row.update({f"locked_{key}": value
+                    for key, value in data.get("locked_score_weights", {}).items()})
+        row["search_space"] = json.dumps(data.get("search_space", {}), sort_keys=True)
+        selected.append(row)
+
+        trial_path = path.parent / "hyperparameter_trials.csv"
+        if trial_path.exists():
+            trials.extend({"dataset": dataset, "seed": seed, **trial}
+                          for trial in read_csv(trial_path))
+    return selected, trials
+
+
 def aggregate_numeric_table(path, keys):
     if not path.exists(): return []
     source = read_csv(path); groups = defaultdict(list)
@@ -256,6 +288,9 @@ def main():
     write_csv(output / "protocol_mean_std.csv", collect_json_stats(args.results_dir, "protocol_statistics.json", "protocol"))
     write_csv(output / "transition_mean_std.csv", collect_json_stats(args.results_dir, "transition_statistics.json", "transition"))
     write_csv(output / "efficiency_mean_std.csv", collect_all_efficiency(args.results_dir))
+    selected_configs, search_trials = collect_hyperparameters(args.results_dir)
+    write_csv(output / "optimal_configs_by_seed.csv", selected_configs)
+    write_csv(output / "hyperparameter_trials_by_seed.csv", search_trials)
     collect_rq3_tables(args.results_dir, output)
     print(json.dumps({"datasets": sorted({row['dataset'] for row in raw}), "raw_rows": len(raw),
                       "output": str(output)}, indent=2))
