@@ -1,0 +1,83 @@
+{
+  "policy": "Only public GitHub source is admitted. Upstream trees remain unmodified; protocol adapters live outside each repository.",
+  "target_protocol": {
+    "dataset": "Baby",
+    "warm_items": 5640,
+    "validation_cold_items": 705,
+    "test_cold_items": 705,
+    "validation_examples": 4332,
+    "test_examples": 3345,
+    "candidate_policy": "full ranking over the 705 test-cold items",
+    "history": "chronological warm-only prefix, maximum length 10",
+    "test_user_exclusion": true,
+    "seed_search": 2022,
+    "final_seeds": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026,
+      2027,
+      2028,
+      2029,
+      2030,
+      2031
+    ]
+  },
+  "repositories": [
+    {
+      "name": "SASRec",
+      "url": "https://github.com/kang205/SASRec",
+      "commit": "e3738967fddab206d6eeb4fda433e7a7034dd8b1",
+      "local": "external/SASRec-original",
+      "role": "sequential ID baseline",
+      "cold_compatibility": "requires a content-only decoder because unseen cold IDs have no trained embedding",
+      "status": "cloned; controlled PyTorch port already evaluated"
+    },
+    {
+      "name": "TGH-1/TGH-2",
+      "url": "https://github.com/haoyuhan1/GraphRec",
+      "commit": "2db502a1c7b6eb31452ace1cdf40953cd2a0a05e",
+      "local": "external/GraphRec",
+      "role": "multi-hop transition/content heuristic",
+      "cold_compatibility": "candidate restriction and Baby split adapter required",
+      "status": "cloned; adapter pending"
+    },
+    {
+      "name": "SEMCo",
+      "url": "https://github.com/gmeehan96/SEMCo",
+      "commit": "0ae1effb23ddac7339666c9af5324711aa909282",
+      "local": "external/SEMCo",
+      "role": "direct content-based cold-item baseline",
+      "cold_compatibility": "direct",
+      "status": "cloned; source hard-codes CUDA"
+    },
+    {
+      "name": "ReaRec",
+      "url": "https://github.com/TangJiakai/ReaRec",
+      "commit": "7f46432cba8435ae15fc744c53715024c3b2d32c",
+      "local": "external/ReaRec",
+      "role": "multi-step reasoning sequential baseline",
+      "cold_compatibility": "requires the same content-only decoder used for SASRec",
+      "status": "cloned; Baby_Products preprocessing exists; strict cold adapter pending"
+    },
+    {
+      "name": "GoRec",
+      "url": "https://github.com/HaoyueBai98/GoRec",
+      "commit": "20836eebc2ca6b6e580998b31523948d5734ce5f",
+      "local": "external/GoRec",
+      "role": "generative cold-start baseline",
+      "cold_compatibility": "direct, but supplied Baby embeddings and split differ from target protocol",
+      "status": "cloned; identical-split adapter pending"
+    },
+    {
+      "name": "CLCRec",
+      "url": "https://github.com/weiyinwei/CLCRec",
+      "commit": "653383b1aa51d26e8971ba4c2d6213ce5613549b",
+      "local": "external/CLCRec",
+      "role": "contrastive cold-start baseline",
+      "cold_compatibility": "direct after strict split/data adapter",
+      "status": "cloned; modernization and adapter pending"
+    }
+  ]
+}
