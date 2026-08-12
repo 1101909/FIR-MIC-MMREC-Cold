@@ -2,7 +2,7 @@
   "dataset": "baby",
   "config": {
     "seeds": [
-      2029
+      2030
     ],
     "warm_ratio": 0.8,
     "validation_ratio": 0.1,
@@ -36,7 +36,7 @@
   "validation_cold_items": 479,
   "test_cold_items": 479,
   "validation_start_timestamp": 1384732800,
-  "test_start_timestamp": 4768.9106738,
+  "test_start_timestamp": 5017.675324573,
   "train_samples": 7378,
   "validation_users": 665,
   "test_users": 608,
@@ -75,17 +75,17 @@
     "test_samples_checked": 608
   },
   "model_checks": {
-    "2029": {
+    "2030": {
       "Static score-level": {
-        "best_epoch": 12,
-        "best_validation_NDCG@20": 0.043237928051024256,
-        "train_seconds": 11.01450375999957,
+        "best_epoch": 5,
+        "best_validation_NDCG@20": 0.041841810695524166,
+        "train_seconds": 10.640324095999858,
         "trainable_parameters": 82176,
         "peak_cuda_memory_mb": 48.55419921875,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 16.022706985473633,
-          "text_projection_grad": 223.3040008544922,
+          "image_projection_grad": 14.320343017578125,
+          "text_projection_grad": 282.9465026855469,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -93,15 +93,15 @@
         "loss_decreased": true
       },
       "Multi-interest per-item": {
-        "best_epoch": 4,
-        "best_validation_NDCG@20": 0.047949688327853,
-        "train_seconds": 11.155998174999695,
+        "best_epoch": 5,
+        "best_validation_NDCG@20": 0.048360426701589763,
+        "train_seconds": 10.626964262000001,
         "trainable_parameters": 82176,
         "peak_cuda_memory_mb": 64.4970703125,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 16.416156768798828,
-          "text_projection_grad": 216.58309936523438,
+          "image_projection_grad": 15.180688858032227,
+          "text_projection_grad": 269.03955078125,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -109,15 +109,15 @@
         "loss_decreased": true
       },
       "Multi-interest clustered": {
-        "best_epoch": 2,
-        "best_validation_NDCG@20": 0.04836995116564848,
-        "train_seconds": 15.840081414999986,
+        "best_epoch": 5,
+        "best_validation_NDCG@20": 0.04699400098559519,
+        "train_seconds": 14.780025697999918,
         "trainable_parameters": 82176,
         "peak_cuda_memory_mb": 49.21435546875,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 16.395614624023438,
-          "text_projection_grad": 216.55731201171875,
+          "image_projection_grad": 15.188140869140625,
+          "text_projection_grad": 271.35430908203125,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null

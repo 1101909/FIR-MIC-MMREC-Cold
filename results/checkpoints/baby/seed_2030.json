@@ -1,0 +1,8 @@
+{
+  "dataset": "baby",
+  "seed": 2030,
+  "epochs": 20,
+  "batch_size": 256,
+  "status": "completed",
+  "completed_at": "2026-08-12T12:55:31.691788+00:00"
+}
