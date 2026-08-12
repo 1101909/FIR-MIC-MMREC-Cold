@@ -1,0 +1,5 @@
+{
+  "lambda_z": 0.0,
+  "lambda_next": 0.1,
+  "lambda_fine": 0.1
+}

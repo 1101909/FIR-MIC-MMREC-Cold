@@ -1,0 +1,2 @@
+dataset,model,n_seeds,inference_ms_per_user_mean,inference_ms_per_user_sd,inference_seconds_mean,inference_seconds_sd,peak_cuda_memory_mb_mean,peak_cuda_memory_mb_sd,train_seconds_mean,train_seconds_sd,trainable_parameters_mean,trainable_parameters_sd
+baby,CLCREC,1,0.27923399528675713,0.0,0.35546487600004184,0.0,437.1142578125,0.0,92.38781791199995,0.0,1784512.0,0.0
