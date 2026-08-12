@@ -1,0 +1,50 @@
+{
+  "method": "FIR-MIC",
+  "dataset": "clothing",
+  "seed": 2022,
+  "device": "cuda",
+  "protocol": "strict temporal item-cold full ranking; warm-only pseudo-cold training",
+  "features": "original image4096 and text384 consumed by separate full-input adapters",
+  "intents": 64,
+  "dim": 64,
+  "epochs": 20,
+  "train_samples_original": 30017,
+  "train_samples_pseudo_cold": 26883,
+  "validation_users": 2571,
+  "test_users": 2095,
+  "validation_locked": {
+    "lambda_z": 0.05,
+    "lambda_next": 0.1,
+    "lambda_fine": 0.2
+  },
+  "test": {
+    "Recall@10": 0.07398568019093078,
+    "NDCG@10": 0.04564629007808529,
+    "MRR@10": 0.03699321892639315,
+    "Recall@20": 0.09785202863961814,
+    "NDCG@20": 0.05159618442652824,
+    "MRR@20": 0.03858089658678189
+  },
+  "route_diagnostics": {
+    "mean_predicted_stay": 0.0060091245099279786,
+    "mean_target_stay_similarity": 0.02213501691071401,
+    "stay_spearman_proxy": 0.3522831164703801,
+    "median_split_auc": 0.6673027989821882
+  },
+  "intent_initialization": {
+    "fit_items": "warm-only",
+    "intents": 64,
+    "min_warm_cluster": 29,
+    "max_warm_cluster": 467
+  },
+  "leakage_checks": {
+    "item_sets_disjoint": true,
+    "timestamp_order_valid": true,
+    "cold_item_leakage": false,
+    "train_samples_checked": 30017,
+    "validation_samples_checked": 2571,
+    "test_samples_checked": 2095
+  },
+  "preprocessing_seconds": 35.2385520429998,
+  "train_seconds": 211.67947153799923
+}

@@ -1,0 +1,8 @@
+{
+  "dataset": "clothing",
+  "seed": 2022,
+  "epochs": 20,
+  "batch_size": 256,
+  "status": "completed",
+  "completed_at": "2026-08-12T13:26:30.625025+00:00"
+}
