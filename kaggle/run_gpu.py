@@ -64,7 +64,7 @@ def main():
             sys.executable, "run_mmrec_seq_scl.py", "--data-dir", data,
             "--datasets", *args.datasets, "--models", "static", "multi-item", "multi-cluster",
             "--seeds", *args.seeds, "--epochs", args.epochs, "--device", "cuda",
-            "--output-dir", out / "controlled_content",
+            "--output-dir", out / "controlled_content", "--resume",
         ])
 
     for dataset in args.datasets:

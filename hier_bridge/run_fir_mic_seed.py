@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "acrg_apr_github"))
 
 from run_intent_interpolation_seed import l2_blocks

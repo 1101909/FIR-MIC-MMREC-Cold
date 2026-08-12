@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset,DataLoader
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parent
-sys.path.insert(0,str(HERE));sys.path.insert(0,str(ROOT/'acrg_apr_github'))
+sys.path.insert(0,str(HERE));sys.path.insert(0,str(ROOT));sys.path.insert(0,str(ROOT/'acrg_apr_github'))
 from run_intent_interpolation_seed import l2_blocks,intent_space
 from run_mmrec_seq_scl import Config,Sample,build_samples,leakage_checks,read_interactions,temporal_item_split
 

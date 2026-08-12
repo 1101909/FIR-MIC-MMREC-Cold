@@ -8,6 +8,7 @@ import argparse,csv,json,math,sys,time
 from pathlib import Path
 import numpy as np
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parent
+sys.path.insert(0,str(ROOT))
 sys.path.insert(0,str(ROOT/'acrg_apr_github'))
 from run_mmrec_seq_scl import Config,build_samples,leakage_checks,read_interactions,temporal_item_split
 
