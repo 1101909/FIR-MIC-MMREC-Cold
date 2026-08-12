@@ -22,13 +22,20 @@ The same layout is used for `clothing` and `sports`.
 Enable a GPU and Internet in Kaggle, then execute:
 
 ```bash
-git clone --recurse-submodules https://github.com/1101909/FIR-MIC-MMREC-Cold.git
+git clone https://github.com/1101909/FIR-MIC-MMREC-Cold.git
 cd FIR-MIC-MMREC-Cold
 python kaggle/run_gpu.py \
   --datasets baby clothing sports \
   --seeds 2022 2023 2024 2025 2026 2027 2028 2029 2030 2031 \
   --epochs 20 --batch-size 256 \
   --run-controlled-content-baselines
+```
+
+Official submodules are audit sources and are not required for FIR-MIC itself.
+Initialize only an eligible baseline when it is actually scheduled, for example:
+
+```bash
+git submodule update --init external/SEMCo
 ```
 
 For a first GPU check:
