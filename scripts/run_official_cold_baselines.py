@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -27,11 +28,45 @@ def metrics(ranks):
  for k in (10,20):
   out[f'Recall@{k}']=float(np.mean(a<=k));out[f'NDCG@{k}']=float(np.mean([1/math.log2(r+1) if r<=k else 0 for r in ranks]));out[f'MRR@{k}']=float(np.mean([1/r if r<=k else 0 for r in ranks]))
  return out
+def stable_rank(scores,target_position):
+ # A deterministic total order is required when scores tie. Counting only
+ # scores strictly greater than the target incorrectly makes every item rank 1
+ # for an all-equal score vector (for example, a zero user representation).
+ order=torch.argsort(scores,descending=True,stable=True)
+ return int(torch.nonzero(order==target_position,as_tuple=False)[0,0].item()+1)
 def rank_embeddings(user_emb,item_emb,user_map,item_map,samples,candidates):
  cpos=torch.tensor([item_map[i] for i in candidates],device=user_emb.device); ce=item_emb[cpos]; lookup={x:j for j,x in enumerate(candidates)}; ranks=[]
  for r in samples:
-  s=user_emb[user_map[r.user]]@ce.T; target=s[lookup[r.target]];ranks.append(int(1+(s>target).sum().item()))
+  s=user_emb[user_map[r.user]]@ce.T;ranks.append(stable_rank(s,lookup[r.target]))
  return metrics(ranks)
+
+def rank_semco_prefixes(item_emb,item_map,samples,candidates):
+ """Evaluate SEMCo with the exact leakage-safe prefix of each sample.
+
+ SEMCo represents a user as normalized RY: the mean of the content embeddings
+ of items in that user's observed history. Each temporal sample has its own R,
+ so reusing one global pre-cutoff interaction row is not protocol-equivalent.
+ """
+ cpos=torch.tensor([item_map[i] for i in candidates],device=item_emb.device)
+ candidate_emb=item_emb[cpos];lookup={item:j for j,item in enumerate(candidates)}
+ ranks=[];zero_norm_users=0;all_equal_score_users=0;target_ties=[]
+ for sample in samples:
+  history_pos=torch.tensor([item_map[i] for i in sample.prefix],device=item_emb.device)
+  user_raw=item_emb[history_pos].mean(dim=0)
+  zero_norm_users+=int(torch.linalg.vector_norm(user_raw).item()<=1e-12)
+  user_emb=F.normalize(user_raw,dim=0)
+  scores=user_emb@candidate_emb.T;target_position=lookup[sample.target]
+  target_score=scores[target_position]
+  ties=int((scores==target_score).sum().item());target_ties.append(ties)
+  all_equal_score_users+=int(ties==len(candidates))
+  ranks.append(stable_rank(scores,target_position))
+ diagnostics={
+  'users':len(samples),'candidates':len(candidates),
+  'zero_norm_users':zero_norm_users,'all_equal_score_users':all_equal_score_users,
+  'mean_target_ties':float(np.mean(target_ties)) if target_ties else 0.0,
+  'max_target_ties':max(target_ties,default=0),
+ }
+ return metrics(ranks),diagnostics
 
 def patch_semco_compat(databuilder,evaluator):
  # The pinned commit is missing two symbols referenced by its own shared code.
@@ -86,8 +121,13 @@ def run_semco(data,dataset,epochs,batch,seed):
  overall_v=v+registry
  args=SimpleNamespace(topN='10,20',model='SEMCo',dataset=dataset,emb_size=64,epochs=epochs,bs=batch,lr=.001,reg=.001,patience=10,decay_lr_epoch=[False,epochs],emb_sizes=(192,64),eval_batch_size=2048,sm_scale=12.,fn='sparsemax')
  model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text]);model.train()
- # Official learner; common evaluator restricts each split to its own candidates.
- return {'validation':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,valid,sorted(val)),'test':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,tests,sorted(test))}
+ # Keep the official learned item encoder, but construct RY from each sample's
+ # exact temporal prefix. The common evaluator restricts each split to its own
+ # full cold candidate partition and applies deterministic stable tie-breaking.
+ validation_metrics,validation_diag=rank_semco_prefixes(model.item_emb,model.data.item,valid,sorted(val))
+ test_metrics,test_diag=rank_semco_prefixes(model.item_emb,model.data.item,tests,sorted(test))
+ return {'validation':validation_metrics,'test':test_metrics,
+         'diagnostics':{'validation':validation_diag,'test':test_diag}}
 
 class PairDS(Dataset):
  def __init__(self,pairs,nuser,nitem,seen,neg,seed):self.pairs=pairs;self.nuser=nuser;self.nitem=nitem;self.seen=seen;self.neg=neg;self.r=random.Random(seed)
