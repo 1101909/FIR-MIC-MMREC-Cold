@@ -83,6 +83,14 @@ def main():
                 "--output-dir", out / "fir_mic" / dataset / f"seed_{seed}",
             ])
 
+    # RQ3 is a post-hoc mechanism analysis over intrinsic content covariates
+    # and saved per-user ranks. It does not retrain or select a model.
+    for dataset in args.datasets:
+        run([
+            sys.executable, "scripts/analyze_rq3_semantic_gap.py",
+            "--data-dir", data, "--dataset", dataset, "--results-dir", out,
+        ])
+
     print("Results:", out)
 
 
