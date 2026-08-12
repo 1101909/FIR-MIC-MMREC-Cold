@@ -1,0 +1,18 @@
+[submodule "external/SEMCo"]
+	path = external/SEMCo
+	url = https://github.com/gmeehan96/SEMCo.git
+[submodule "external/CLCRec"]
+	path = external/CLCRec
+	url = https://github.com/weiyinwei/CLCRec.git
+[submodule "external/GoRec"]
+	path = external/GoRec
+	url = https://github.com/HaoyueBai98/GoRec.git
+[submodule "external/GraphRec"]
+	path = external/GraphRec
+	url = https://github.com/haoyuhan1/GraphRec.git
+[submodule "external/ReaRec"]
+	path = external/ReaRec
+	url = https://github.com/TangJiakai/ReaRec.git
+[submodule "external/SASRec"]
+	path = external/SASRec
+	url = https://github.com/kang205/SASRec.git

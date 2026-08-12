@@ -1,0 +1,13 @@
+{
+  "id": "toanktx/fir-mic-mmrec-cold-gpu",
+  "title": "FIR-MIC MMREC-COLD GPU",
+  "code_file": "run_gpu.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["toanktx/mmrec-cold"],
+  "competition_sources": [],
+  "kernel_sources": []
+}
