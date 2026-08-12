@@ -51,8 +51,17 @@ def run_semco(data,dataset,epochs,batch,seed):
  triple=lambda rows:[[int(u),int(i),1.] for u,i in rows]
  train=triple(pairs);v=triple((r.user,r.target) for r in valid);te=triple((r.user,r.target) for r in tests);empty=[]
  users=sorted({u for u,_ in pairs}|{r.user for r in valid}|{r.user for r in tests}); items=sorted(warm|val|test)
+ # SEMCo's builder creates its source->mapped item table only from rows present
+ # in train/validation/test lists, but full-catalog ranking also contains items
+ # with no target interaction in these lists. Register those content-only items
+ # under a synthetic metadata user in overall validation. These rows are never
+ # used by training or by the common evaluator and therefore add no supervision.
+ represented={i for _,i in pairs}|{r.target for r in valid}|{r.target for r in tests}
+ registry_user=max(users)+1
+ registry=[[registry_user,int(i),0.] for i in items if i not in represented]
+ overall_v=v+registry
  args=SimpleNamespace(topN='10,20',model='SEMCo',dataset=dataset,emb_size=64,epochs=epochs,bs=batch,lr=.001,reg=.001,patience=10,decay_lr_epoch=[False,epochs],emb_sizes=(192,64),eval_batch_size=2048,sm_scale=12.,fn='sparsemax')
- model=SEMCo(args,train,empty,v,v,empty,te,te,max(users)+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text]);model.train()
+ model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text]);model.train()
  # Official learner; common evaluator restricts each split to its own candidates.
  return {'validation':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,valid,sorted(val)),'test':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,tests,sorted(test))}
 
