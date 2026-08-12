@@ -27,7 +27,9 @@ cd FIR-MIC-MMREC-Cold
 python kaggle/run_gpu.py \
   --datasets baby clothing sports \
   --seeds 2022 2023 2024 2025 2026 2027 2028 2029 2030 2031 \
-  --epochs 20 --batch-size 256 \
+  --epochs 20 \
+  --fir-mic-max-epochs 500 \
+  --batch-size 256 \
   --grid-intents 32 64 \
   --grid-dims 64 \
   --grid-learning-rates 0.0005 0.001 \
@@ -68,6 +70,11 @@ the `--grid-*` arguments. `--epochs` is the maximum epoch considered in each
 trial, and `--grid-patience` stops a trial after consecutive epochs without an
 improvement. Selection is lexicographic on validation NDCG@10, Recall@10, then
 MRR@10, with the earlier epoch used to break an exact tie.
+
+In the combined Kaggle runner, `--epochs` controls baseline training while
+`--fir-mic-max-epochs` independently controls the FIR-MIC search ceiling. The
+published runner uses 20 baseline epochs and at most 500 FIR-MIC epochs, with
+validation early stopping after 5 non-improving epochs.
 
 Neither cold test interactions nor test metrics are accessed during this
 search. After selecting the hyperparameters and epoch, the runner creates a new

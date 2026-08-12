@@ -32,7 +32,8 @@ REPO_DIR = Path("/kaggle/working/FIR-MIC-MMREC-Cold")
 
 DATASETS = ["baby", "clothing", "sports"]
 SEEDS = list(range(2022, 2032))
-MAX_EPOCHS = 20
+BASELINE_EPOCHS = 20
+FIR_MIC_MAX_EPOCHS = 500
 BATCH_SIZE = 256
 
 GRID_INTENTS = [32, 64]
@@ -152,7 +153,8 @@ run([
 run_configuration = {
     "source_branch": SOURCE_BRANCH,
     "source_commit": source_commit,
-    "max_epochs": MAX_EPOCHS,
+    "baseline_epochs": BASELINE_EPOCHS,
+    "fir_mic_max_epochs": FIR_MIC_MAX_EPOCHS,
     "batch_size": BATCH_SIZE,
     "grid_intents": GRID_INTENTS,
     "grid_dims": GRID_DIMS,
@@ -232,7 +234,8 @@ for dataset in DATASETS:
             "--data-dir", DATA_DIR,
             "--datasets", dataset,
             "--seeds", seed,
-            "--epochs", MAX_EPOCHS,
+            "--epochs", BASELINE_EPOCHS,
+            "--fir-mic-max-epochs", FIR_MIC_MAX_EPOCHS,
             "--batch-size", BATCH_SIZE,
             "--grid-intents", *GRID_INTENTS,
             "--grid-dims", *GRID_DIMS,

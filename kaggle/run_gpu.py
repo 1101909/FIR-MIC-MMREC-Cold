@@ -44,6 +44,10 @@ def main():
     parser.add_argument("--datasets", nargs="+", default=["baby"])
     parser.add_argument("--seeds", nargs="+", type=int, default=[2022])
     parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument(
+        "--fir-mic-max-epochs", type=int,
+        help="Maximum validation-selected FIR-MIC epoch; defaults to --epochs",
+    )
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--grid-intents", nargs="+", type=int, default=[32, 64])
     parser.add_argument("--grid-dims", nargs="+", type=int, default=[64])
@@ -58,6 +62,9 @@ def main():
     parser.add_argument("--run-official-cold-baselines", action="store_true")
     parser.add_argument("--extended-ablations", action="store_true")
     args = parser.parse_args()
+    fir_mic_max_epochs = args.fir_mic_max_epochs or args.epochs
+    if args.epochs < 1 or fir_mic_max_epochs < 1:
+        parser.error("--epochs and --fir-mic-max-epochs must be positive")
     if not torch.cuda.is_available():
         raise RuntimeError("Kaggle GPU is not enabled")
     print("GPU", torch.cuda.get_device_name(0), "Torch", torch.__version__)
@@ -94,7 +101,7 @@ def main():
             run([
                 sys.executable, "hier_bridge/run_fir_mic_seed.py",
                 "--data-dir", data, "--dataset", dataset, "--seed", seed,
-                "--epochs", args.epochs, "--batch-size", args.batch_size,
+                "--epochs", fir_mic_max_epochs, "--batch-size", args.batch_size,
                 "--grid-intents", *args.grid_intents,
                 "--grid-dims", *args.grid_dims,
                 "--grid-learning-rates", *args.grid_learning_rates,
