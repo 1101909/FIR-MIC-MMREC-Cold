@@ -1,7 +1,7 @@
 {
   "id": "toanktx/fir-mic-mmrec-cold-gpu",
   "title": "FIR-MIC MMREC-COLD GPU",
-  "code_file": "run_gpu.py",
+  "code_file": "bootstrap_kaggle.py",
   "language": "python",
   "kernel_type": "script",
   "is_private": true,
