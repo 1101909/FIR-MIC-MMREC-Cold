@@ -33,6 +33,30 @@ def rank_embeddings(user_emb,item_emb,user_map,item_map,samples,candidates):
   s=user_emb[user_map[r.user]]@ce.T; target=s[lookup[r.target]];ranks.append(int(1+(s>target).sum().item()))
  return metrics(ranks)
 
+def patch_semco_compat(databuilder,evaluator):
+ # The pinned commit is missing two symbols referenced by its own shared code.
+ if not hasattr(databuilder,'DataBuilder'):
+  class _UnusedWarmDataBuilder:
+   def __init__(self,*args,**kwargs):
+    raise RuntimeError('Warm-only DataBuilder is not shipped by this SEMCo commit')
+  databuilder.DataBuilder=_UnusedWarmDataBuilder
+ if not hasattr(evaluator.Metric,'hit_ratio'):
+  @staticmethod
+  def _hit_ratio(origin,hits):
+   return round(sum(hits[user]>0 for user in origin)/len(origin),5)
+  evaluator.Metric.hit_ratio=_hit_ratio
+ if not getattr(evaluator.ranking_evaluation,'_empty_safe',False):
+  upstream_ranking_evaluation=evaluator.ranking_evaluation
+  def _ranking_evaluation(origin,res,N):
+   if origin:
+    return upstream_ranking_evaluation(origin,res,N)
+   measure=[]
+   for n in N:
+    measure.extend([f'Top {n}\n','Hit Ratio:0.0\n','Recall:0.0\n','NDCG:0.0\n'])
+   return measure,[[0.0,0.0] for _ in N]
+  _ranking_evaluation._empty_safe=True
+  evaluator.ranking_evaluation=_ranking_evaluation
+
 def run_semco(data,dataset,epochs,batch,seed):
  sem=ROOT/'external/SEMCo';sys.path.insert(0,str(sem))
  # The pinned SEMCo commit exports only cold-start builders, while its shared
@@ -40,11 +64,11 @@ def run_semco(data,dataset,epochs,batch,seed):
  # Supply only that missing import symbol outside the upstream tree. SEMCo's
  # executed cold path still uses the official ColdStartDataBuilder unchanged.
  import util.databuilder as semco_databuilder
- if not hasattr(semco_databuilder,'DataBuilder'):
-  class _UnusedWarmDataBuilder:
-   def __init__(self,*args,**kwargs):
-    raise RuntimeError('Warm-only DataBuilder is not shipped by this SEMCo commit')
-  semco_databuilder.DataBuilder=_UnusedWarmDataBuilder
+ # The pinned upstream evaluator calls Metric.hit_ratio(), but that method is
+ # absent from the same commit. Restore ColdRec's user-level HR definition at
+ # runtime so the official model code can complete its internal validation.
+ import util.evaluator as semco_evaluator
+ patch_semco_compat(semco_databuilder,semco_evaluator)
  from models.SEMCo import SEMCo
  _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset)
  image=l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'));text=l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))
