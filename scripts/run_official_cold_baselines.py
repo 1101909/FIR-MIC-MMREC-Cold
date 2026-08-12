@@ -35,6 +35,16 @@ def rank_embeddings(user_emb,item_emb,user_map,item_map,samples,candidates):
 
 def run_semco(data,dataset,epochs,batch,seed):
  sem=ROOT/'external/SEMCo';sys.path.insert(0,str(sem))
+ # The pinned SEMCo commit exports only cold-start builders, while its shared
+ # BaseRecommender imports the unused warm-only DataBuilder unconditionally.
+ # Supply only that missing import symbol outside the upstream tree. SEMCo's
+ # executed cold path still uses the official ColdStartDataBuilder unchanged.
+ import util.databuilder as semco_databuilder
+ if not hasattr(semco_databuilder,'DataBuilder'):
+  class _UnusedWarmDataBuilder:
+   def __init__(self,*args,**kwargs):
+    raise RuntimeError('Warm-only DataBuilder is not shipped by this SEMCo commit')
+  semco_databuilder.DataBuilder=_UnusedWarmDataBuilder
  from models.SEMCo import SEMCo
  _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset)
  image=l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'));text=l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))
