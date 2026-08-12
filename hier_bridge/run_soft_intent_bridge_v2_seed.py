@@ -30,22 +30,32 @@ def warm_teacher(image,text,warm,k,seed,temp=.12):
  joint=np.concatenate([image/np.sqrt(2),text/np.sqrt(2)],1).astype(np.float32);wi=np.asarray(sorted(warm));qw,c,_,_=intent_space(joint[wi],k,seed);sim=joint@c.T;y=sim/temp;y-=y.max(1,keepdims=True);y=np.exp(y);q=(y/y.sum(1,keepdims=True)).astype(np.float32);return q,{'fit_items':'warm-only','intents':k,'min_warm_cluster':int(np.bincount(q[wi].argmax(1),minlength=k).min()),'max_warm_cluster':int(np.bincount(q[wi].argmax(1),minlength=k).max())}
 
 class Model(nn.Module):
- def __init__(self,image,text,teacher,k,d=64,maxlen=10):
-  super().__init__();self.register_buffer('image',image);self.register_buffer('text',text);self.register_buffer('teacher',teacher);self.ip=nn.Linear(image.shape[1],d);self.tp=nn.Linear(text.shape[1],d);self.gate=nn.Linear(3*d,2);self.proto_i=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.proto_t=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.intent_emb=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.pos=nn.Embedding(maxlen,d);layer=nn.TransformerEncoderLayer(d,4,2*d,.15,batch_first=True,norm_first=True);self.sas=nn.TransformerEncoder(layer,2);self.future=nn.Linear(d,k);self.k=k
+ def __init__(self,image,text,teacher,k,d=64,maxlen=10,modality='full'):
+  super().__init__();self.register_buffer('image',image);self.register_buffer('text',text);self.register_buffer('teacher',teacher);self.ip=nn.Linear(image.shape[1],d);self.tp=nn.Linear(text.shape[1],d);self.gate=nn.Linear(3*d,2);self.proto_i=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.proto_t=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.intent_emb=nn.Parameter(torch.randn(k,d)/math.sqrt(d));self.pos=nn.Embedding(maxlen,d);layer=nn.TransformerEncoderLayer(d,4,2*d,.15,batch_first=True,norm_first=True);self.sas=nn.TransformerEncoder(layer,2);self.future=nn.Linear(d,k);self.k=k;self.modality=modality
  def projected(self,idx):return F.normalize(self.ip(self.image[idx]),dim=-1),F.normalize(self.tp(self.text[idx]),dim=-1)
  def item_q(self,idx):
-  vi,tt=self.projected(idx);g=self.gate(torch.cat([tt,vi,tt*vi],-1)).softmax(-1);li=vi@F.normalize(self.proto_i,dim=-1).T;lt=tt@F.normalize(self.proto_t,dim=-1).T;return (g[...,0,None]*lt+g[...,1,None]*li).div(.10).softmax(-1)
+  vi,tt=self.projected(idx);li=vi@F.normalize(self.proto_i,dim=-1).T;lt=tt@F.normalize(self.proto_t,dim=-1).T
+  if self.modality=='image':logits=li
+  elif self.modality=='text':logits=lt
+  else:
+   g=self.gate(torch.cat([tt,vi,tt*vi],-1)).softmax(-1);logits=g[...,0,None]*lt+g[...,1,None]*li
+  return logits.div(.10).softmax(-1)
  def content(self,idx):
-  vi,tt=self.projected(idx);g=self.gate(torch.cat([tt,vi,tt*vi],-1)).softmax(-1);return F.normalize(g[...,0,None]*tt+g[...,1,None]*vi,dim=-1)
+  vi,tt=self.projected(idx)
+  if self.modality=='image':return vi
+  if self.modality=='text':return tt
+  g=self.gate(torch.cat([tt,vi,tt*vi],-1)).softmax(-1);return F.normalize(g[...,0,None]*tt+g[...,1,None]*vi,dim=-1)
  def encode(self,p,l):
   b,w=p.shape;mask=torch.arange(w,device=p.device)[None]>=l[:,None];q=self.item_q(p);x=q@self.intent_emb+self.pos(torch.arange(w,device=p.device))[None];causal=torch.triu(torch.ones(w,w,device=p.device,dtype=torch.bool),1);h=self.sas(x,mask=causal,src_key_padding_mask=mask);last=h[torch.arange(b,device=p.device),l-1];future=self.future(last).softmax(-1);rec=.85**torch.arange(w-1,-1,-1,device=p.device).float();weights=rec[None]*(~mask);weights/=weights.sum(1,keepdims=True);current=(q*weights[:,:,None]).sum(1);return current,future,self.content(p),mask,q
  def components(self,p,l,candidates):
   cur,fut,hist,mask,_=self.encode(p,l);qc=self.item_q(candidates);cold=self.content(candidates);intent_res=(fut-cur)@qc.T;att=torch.einsum('bld,cd->blc',hist,cold).masked_fill(mask[:,:,None],-1e9).softmax(1);ctx=torch.einsum('blc,bld->bcd',att,hist);fine=torch.einsum('bcd,cd->bc',ctx,cold);return cur,fut,intent_res,fine
 
-def raw_anchor(p,l,cand,image,text):
+def raw_anchor(p,l,cand,image,text,modality='full'):
  vals=[]
  for j in range(len(p)):
   h=p[j,:l[j]];si=torch.max(image[h]@image[cand].T,0).values;st=torch.max(text[h]@text[cand].T,0).values;vals.append(.1*si+.9*st)
+  if modality=='image':vals[-1]=si
+  elif modality=='text':vals[-1]=st
  return torch.stack(vals)
 def train_model(model,samples,image,text,epochs,batch,seed,device):
  loader=DataLoader(DS(samples),batch_size=batch,shuffle=True,generator=torch.Generator().manual_seed(seed),collate_fn=collate);opt=torch.optim.AdamW(model.parameters(),1e-3,weight_decay=1e-4);hist=[]

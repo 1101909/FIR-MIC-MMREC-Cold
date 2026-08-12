@@ -47,6 +47,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--run-controlled-content-baselines", action="store_true")
     parser.add_argument("--run-official-cold-baselines", action="store_true")
+    parser.add_argument("--extended-ablations", action="store_true")
     args = parser.parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("Kaggle GPU is not enabled")
@@ -81,6 +82,7 @@ def main():
                 "--data-dir", data, "--dataset", dataset, "--seed", seed,
                 "--epochs", args.epochs, "--batch-size", args.batch_size,
                 "--output-dir", out / "fir_mic" / dataset / f"seed_{seed}",
+                *(["--extended-ablations"] if args.extended_ablations else []),
             ])
 
     # RQ3 is a post-hoc mechanism analysis over intrinsic content covariates
@@ -90,6 +92,8 @@ def main():
             sys.executable, "scripts/analyze_rq3_semantic_gap.py",
             "--data-dir", data, "--dataset", dataset, "--results-dir", out,
         ])
+
+    run([sys.executable, "scripts/summarize_evidence.py", "--results-dir", out])
 
     print("Results:", out)
 

@@ -4,7 +4,7 @@ Only data indexing and the common full-cold evaluator are project-owned. Model
 layers and losses are imported from pinned GitHub submodules.
 """
 from __future__ import annotations
-import argparse, csv, json, math, random, sys
+import argparse, csv, json, math, random, sys, time
 from pathlib import Path
 from types import SimpleNamespace
 import numpy as np
@@ -120,14 +120,22 @@ def run_semco(data,dataset,epochs,batch,seed):
  registry=[[registry_user,int(i),0.] for i in items if i not in represented]
  overall_v=v+registry
  args=SimpleNamespace(topN='10,20',model='SEMCo',dataset=dataset,emb_size=64,epochs=epochs,bs=batch,lr=.001,reg=.001,patience=10,decay_lr_epoch=[False,epochs],emb_sizes=(192,64),eval_batch_size=2048,sm_scale=12.,fn='sparsemax')
- model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text]);model.train()
+ if torch.cuda.is_available():torch.cuda.reset_peak_memory_stats()
+ model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text])
+ train_start=time.perf_counter();model.train();train_seconds=time.perf_counter()-train_start
  # Keep the official learned item encoder, but construct RY from each sample's
  # exact temporal prefix. The common evaluator restricts each split to its own
  # full cold candidate partition and applies deterministic stable tie-breaking.
+ inference_start=time.perf_counter()
  validation_metrics,validation_diag=rank_semco_prefixes(model.item_emb,model.data.item,valid,sorted(val))
  test_metrics,test_diag=rank_semco_prefixes(model.item_emb,model.data.item,tests,sorted(test))
+ inference_seconds=time.perf_counter()-inference_start
  return {'validation':validation_metrics,'test':test_metrics,
-         'diagnostics':{'validation':validation_diag,'test':test_diag}}
+         'diagnostics':{'validation':validation_diag,'test':test_diag},
+         'efficiency':{'trainable_parameters':sum(p.numel() for p in model.model.parameters() if p.requires_grad),
+                       'train_seconds':train_seconds,'inference_seconds':inference_seconds,
+                       'inference_ms_per_user':1000*inference_seconds/(len(valid)+len(tests)),
+                       'peak_cuda_memory_mb':torch.cuda.max_memory_allocated()/(1024**2)}}
 
 class PairDS(Dataset):
  def __init__(self,pairs,nuser,nitem,seen,neg,seed):self.pairs=pairs;self.nuser=nuser;self.nitem=nitem;self.seen=seen;self.neg=neg;self.r=random.Random(seed)
@@ -143,14 +151,22 @@ def run_clcrec(data,dataset,epochs,batch,seed):
  mapped=[(umap[u],imap[i]) for u,i in pairs];seen={u:set() for u in range(len(users))}
  for u,i in mapped:seen[u].add(i)
  image=torch.tensor(l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda');text=torch.tensor(l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda')
- neg=min(200,max(1,len(warm)-1)); model=CLCRec(len(users),len(order),len(warm),mapped,.1,64,image,None,text,.07,neg,.5,False,.5).cuda();opt=torch.optim.Adam(model.parameters(),lr=1e-3);loader=DataLoader(PairDS(mapped,len(users),len(warm),seen,neg,seed),batch_size=batch,shuffle=True)
+ neg=min(200,max(1,len(warm)-1));torch.cuda.reset_peak_memory_stats();model=CLCRec(len(users),len(order),len(warm),mapped,.1,64,image,None,text,.07,neg,.5,False,.5).cuda();opt=torch.optim.Adam(model.parameters(),lr=1e-3);loader=DataLoader(PairDS(mapped,len(users),len(warm),seen,neg,seed),batch_size=batch,shuffle=True)
  model.train()
+ train_start=time.perf_counter()
  for _ in range(epochs):
   for u,i in loader:opt.zero_grad();loss,_,_=model.loss(u.cuda(),i.cuda());loss.backward();opt.step()
+ train_seconds=time.perf_counter()-train_start
  # Refresh official content-generated cold representations.
+ inference_start=time.perf_counter()
  with torch.no_grad():
   u,i=next(iter(loader));model(u.cuda(),i.cuda());ue=model.result[:len(users)];ie=model.result[len(users):]
- return {'validation':rank_embeddings(ue,ie,umap,imap,valid,sorted(val)),'test':rank_embeddings(ue,ie,umap,imap,tests,sorted(test))}
+ validation_metrics=rank_embeddings(ue,ie,umap,imap,valid,sorted(val));test_metrics=rank_embeddings(ue,ie,umap,imap,tests,sorted(test));inference_seconds=time.perf_counter()-inference_start
+ return {'validation':validation_metrics,'test':test_metrics,
+         'efficiency':{'trainable_parameters':sum(p.numel() for p in model.parameters() if p.requires_grad),
+                       'train_seconds':train_seconds,'inference_seconds':inference_seconds,
+                       'inference_ms_per_user':1000*inference_seconds/(len(valid)+len(tests)),
+                       'peak_cuda_memory_mb':torch.cuda.max_memory_allocated()/(1024**2)}}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--data-dir',type=Path,required=True);p.add_argument('--dataset',choices=['baby','clothing','sports'],required=True);p.add_argument('--models',nargs='+',choices=['semco','clcrec'],default=['semco','clcrec']);p.add_argument('--epochs',type=int,default=1);p.add_argument('--batch-size',type=int,default=256);p.add_argument('--seed',type=int,default=2022);p.add_argument('--output',type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);torch.manual_seed(a.seed);np.random.seed(a.seed);random.seed(a.seed)
  out={};

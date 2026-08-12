@@ -29,7 +29,8 @@ python kaggle/run_gpu.py \
   --seeds 2022 2023 2024 2025 2026 2027 2028 2029 2030 2031 \
   --epochs 20 --batch-size 256 \
   --run-controlled-content-baselines \
-  --run-official-cold-baselines
+  --run-official-cold-baselines \
+  --extended-ablations
 ```
 
 Official submodules are audit sources and are not required for FIR-MIC itself.
@@ -82,3 +83,25 @@ Samples are divided into deterministic balanced quartiles (`Q1-low` through
 
 The gap uses intrinsic cold-item content only for post-hoc evaluation. Gap
 assignments and cold interactions never enter training or model selection.
+
+## Paper evidence tables
+
+Use `--extended-ablations` for the confirmatory run. It retrains image-only and
+text-only FIR-MIC variants rather than masking modalities after training. Each
+seed additionally writes component ranks, past/future target-intent cosine,
+protocol statistics, transition statistics, and efficiency measurements.
+
+The pipeline finishes by running `scripts/summarize_evidence.py`. Paper-ready
+cross-seed tables are saved under `results/evidence/`:
+
+- `main_raw_by_seed.csv`, `main_mean_std.csv`, and `main_gains.csv`;
+- `ablation_mean_std.csv`;
+- `statistical_significance.csv` with paired t-test, Wilcoxon, Holm correction,
+  confidence intervals, and effect sizes;
+- `protocol_mean_std.csv`, `transition_mean_std.csv`, and
+  `efficiency_mean_std.csv`.
+
+Additional RQ3 tables include past versus future performance, future-state
+quality, history-length groups, and interest-diversity groups. Legacy SEMCo
+files without the corrected adapter diagnostics are deliberately excluded from
+paper-ready summaries.
