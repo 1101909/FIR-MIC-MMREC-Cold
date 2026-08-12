@@ -1,0 +1,76 @@
+"""Run unmodified official SEMCo and CLCRec model classes on MMREC-COLD.
+
+Only data indexing and the common full-cold evaluator are project-owned. Model
+layers and losses are imported from pinned GitHub submodules.
+"""
+from __future__ import annotations
+import argparse, csv, json, math, random, sys
+from pathlib import Path
+from types import SimpleNamespace
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Dataset
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT)); sys.path.insert(0,str(ROOT/'hier_bridge'))
+from run_mmrec_seq_scl import Config,read_interactions,temporal_item_split,build_samples
+from run_intent_interpolation_seed import l2_blocks
+
+def raw_sets(data,dataset):
+ inter=read_interactions(data/dataset,dataset); warm,val,test,cutoff,_=temporal_item_split(inter,Config(max_sequence_length=10)); train,valid,tests,_=build_samples(inter,warm,val,test,cutoff,10)
+ # Warm evidence available before the validation-cold boundary. This includes
+ # test users' observed warm history, but never a cold interaction.
+ train_pairs=sorted({(u,i) for u,i,t in inter if i in warm and t<cutoff})
+ return inter,warm,val,test,train_pairs,valid,tests
+def metrics(ranks):
+ out={}; a=np.asarray(ranks)
+ for k in (10,20):
+  out[f'Recall@{k}']=float(np.mean(a<=k));out[f'NDCG@{k}']=float(np.mean([1/math.log2(r+1) if r<=k else 0 for r in ranks]));out[f'MRR@{k}']=float(np.mean([1/r if r<=k else 0 for r in ranks]))
+ return out
+def rank_embeddings(user_emb,item_emb,user_map,item_map,samples,candidates):
+ cpos=torch.tensor([item_map[i] for i in candidates],device=user_emb.device); ce=item_emb[cpos]; lookup={x:j for j,x in enumerate(candidates)}; ranks=[]
+ for r in samples:
+  s=user_emb[user_map[r.user]]@ce.T; target=s[lookup[r.target]];ranks.append(int(1+(s>target).sum().item()))
+ return metrics(ranks)
+
+def run_semco(data,dataset,epochs,batch,seed):
+ sem=ROOT/'external/SEMCo';sys.path.insert(0,str(sem))
+ from models.SEMCo import SEMCo
+ _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset)
+ image=l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'));text=l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))
+ triple=lambda rows:[[int(u),int(i),1.] for u,i in rows]
+ train=triple(pairs);v=triple((r.user,r.target) for r in valid);te=triple((r.user,r.target) for r in tests);empty=[]
+ users=sorted({u for u,_ in pairs}|{r.user for r in valid}|{r.user for r in tests}); items=sorted(warm|val|test)
+ args=SimpleNamespace(topN='10,20',model='SEMCo',dataset=dataset,emb_size=64,epochs=epochs,bs=batch,lr=.001,reg=.001,patience=10,decay_lr_epoch=[False,epochs],emb_sizes=(192,64),eval_batch_size=2048,sm_scale=12.,fn='sparsemax')
+ model=SEMCo(args,train,empty,v,v,empty,te,te,max(users)+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text]);model.train()
+ # Official learner; common evaluator restricts each split to its own candidates.
+ return {'validation':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,valid,sorted(val)),'test':rank_embeddings(model.user_emb,model.item_emb,model.data.user,model.data.item,tests,sorted(test))}
+
+class PairDS(Dataset):
+ def __init__(self,pairs,nuser,nitem,seen,neg,seed):self.pairs=pairs;self.nuser=nuser;self.nitem=nitem;self.seen=seen;self.neg=neg;self.r=random.Random(seed)
+ def __len__(self):return len(self.pairs)
+ def __getitem__(self,j):
+  u,i=self.pairs[j]; pool=list(set(range(self.nitem))-self.seen[u]); ns=self.r.sample(pool,min(self.neg,len(pool)));ns+=(ns[:1]*(self.neg-len(ns)));return torch.tensor([u]*(self.neg+1)),torch.tensor([self.nuser+i]+[self.nuser+x for x in ns])
+def run_clcrec(data,dataset,epochs,batch,seed):
+ # Compatibility alias for the old upstream import; no model equation changes.
+ import torch_geometric.utils as tgu
+ if not hasattr(tgu,'scatter_'):tgu.scatter_=tgu.scatter
+ clc=ROOT/'external/CLCRec';sys.path.insert(0,str(clc));from model_CLCRec import CLCRec
+ _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset); order=sorted(warm)+sorted(val)+sorted(test); imap={x:j for j,x in enumerate(order)};users=sorted({u for u,_ in pairs}|{r.user for r in valid}|{r.user for r in tests});umap={x:j for j,x in enumerate(users)}
+ mapped=[(umap[u],imap[i]) for u,i in pairs];seen={u:set() for u in range(len(users))}
+  for u,i in mapped:seen[u].add(i)
+ image=torch.tensor(l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda');text=torch.tensor(l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))[order],dtype=torch.float,device='cuda')
+  neg=min(200,max(1,len(warm)-1)); model=CLCRec(len(users),len(order),len(warm),mapped,.1,64,image,None,text,.07,neg,.5,False,.5).cuda();opt=torch.optim.Adam(model.parameters(),lr=1e-3);loader=DataLoader(PairDS(mapped,len(users),len(warm),seen,neg,seed),batch_size=batch,shuffle=True)
+ model.train()
+ for _ in range(epochs):
+  for u,i in loader:opt.zero_grad();loss,_,_=model.loss(u.cuda(),i.cuda());loss.backward();opt.step()
+ # Refresh official content-generated cold representations.
+ with torch.no_grad():
+  u,i=next(iter(loader));model(u.cuda(),i.cuda());ue=model.result[:len(users)];ie=model.result[len(users):]
+ return {'validation':rank_embeddings(ue,ie,umap,imap,valid,sorted(val)),'test':rank_embeddings(ue,ie,umap,imap,tests,sorted(test))}
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--data-dir',type=Path,required=True);p.add_argument('--dataset',choices=['baby','clothing','sports'],required=True);p.add_argument('--models',nargs='+',choices=['semco','clcrec'],default=['semco','clcrec']);p.add_argument('--epochs',type=int,default=1);p.add_argument('--batch-size',type=int,default=256);p.add_argument('--seed',type=int,default=2022);p.add_argument('--output',type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);torch.manual_seed(a.seed);np.random.seed(a.seed);random.seed(a.seed)
+ out={};
+ for name in a.models:out[name]=run_semco(a.data_dir,a.dataset,a.epochs,a.batch_size,a.seed) if name=='semco' else run_clcrec(a.data_dir,a.dataset,a.epochs,a.batch_size,a.seed)
+ a.output.write_text(json.dumps({'dataset':a.dataset,'seed':a.seed,'epochs':a.epochs,'results':out},indent=2));print(json.dumps(out))
+if __name__=='__main__':main()

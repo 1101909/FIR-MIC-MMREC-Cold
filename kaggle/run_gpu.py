@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--run-controlled-content-baselines", action="store_true")
+    parser.add_argument("--run-official-cold-baselines", action="store_true")
     args = parser.parse_args()
     if not torch.cuda.is_available():
         raise RuntimeError("Kaggle GPU is not enabled")
@@ -66,6 +67,12 @@ def main():
             "--seeds", *args.seeds, "--epochs", args.epochs, "--device", "cuda",
             "--output-dir", out / "controlled_content", "--resume",
         ])
+
+    if args.run_official_cold_baselines:
+        run(["git", "submodule", "update", "--init", "external/SEMCo", "external/CLCRec"])
+        for dataset in args.datasets:
+            for seed in args.seeds:
+                run([sys.executable,"scripts/run_official_cold_baselines.py","--data-dir",data,"--dataset",dataset,"--models","semco","clcrec","--seed",seed,"--epochs",args.epochs,"--batch-size",args.batch_size,"--output",out/"official"/dataset/f"seed_{seed}.json"])
 
     for dataset in args.datasets:
         for seed in args.seeds:

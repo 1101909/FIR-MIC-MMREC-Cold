@@ -36,6 +36,8 @@ if DEST.exists():
 else:
     subprocess.run(["git", "clone", REPO, str(DEST)], check=True)
 
+subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "-r", str(DEST / "requirements.txt")], check=True)
+
 subprocess.run(
     [
         sys.executable, "-u", str(DEST / "kaggle/run_gpu.py"),
@@ -45,6 +47,7 @@ subprocess.run(
         "--epochs", "1",
         "--batch-size", "256",
         "--run-controlled-content-baselines",
+        "--run-official-cold-baselines",
     ],
     cwd=DEST,
     check=True,

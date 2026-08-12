@@ -28,7 +28,8 @@ python kaggle/run_gpu.py \
   --datasets baby clothing sports \
   --seeds 2022 2023 2024 2025 2026 2027 2028 2029 2030 2031 \
   --epochs 20 --batch-size 256 \
-  --run-controlled-content-baselines
+  --run-controlled-content-baselines \
+  --run-official-cold-baselines
 ```
 
 Official submodules are audit sources and are not required for FIR-MIC itself.

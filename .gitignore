@@ -4,3 +4,4 @@ __pycache__/
 results/
 kaggle_runs/
 .ipynb_checkpoints/
+kaggle_output/
