@@ -10,7 +10,23 @@ from hier_bridge.run_fir_mic_seed import grid_search
 from run_mmrec_seq_scl import Sample
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from summarize_evidence import collect_hyperparameters
+from summarize_evidence import collect_hyperparameters, read_csv, write_csv
+
+
+def test_write_csv_accepts_sparse_model_specific_fields(tmp_path: Path):
+    destination = tmp_path / "efficiency.csv"
+    write_csv(destination, [
+        {"model": "Static", "train_seconds_mean": 1.0},
+        {
+            "model": "FIR-MIC",
+            "train_seconds_mean": 2.0,
+            "hyperparameter_search_seconds_mean": 3.0,
+        },
+    ])
+
+    rows = read_csv(destination)
+    assert rows[0]["hyperparameter_search_seconds_mean"] == ""
+    assert rows[1]["hyperparameter_search_seconds_mean"] == "3.0"
 
 
 def normalized(rng, rows, columns):

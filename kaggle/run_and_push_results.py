@@ -122,9 +122,14 @@ if remote_results.returncode == 0:
             "git", "merge", "--ff-only", f"origin/{RESULTS_BRANCH}",
         ], cwd=REPO_DIR)
     else:
+        # The repository was cloned with --single-branch, so Git does not
+        # include the results branch in remote.origin.fetch.  The explicit
+        # fetch above creates the remote-tracking ref, but ``--track`` still
+        # rejects it as an upstream.  Create the branch from the fetched ref;
+        # the push -u below installs the upstream configuration.
         run([
-            "git", "switch", "-c", RESULTS_BRANCH, "--track",
-            f"origin/{RESULTS_BRANCH}",
+            "git", "switch", "-c", RESULTS_BRANCH,
+            f"refs/remotes/origin/{RESULTS_BRANCH}",
         ], cwd=REPO_DIR)
     # Results remain on their own branch while always receiving the latest
     # experiment runner fixes from the source branch.
