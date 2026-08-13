@@ -1,0 +1,62 @@
+{
+  "trial": 1,
+  "intents": 32,
+  "dim": 64,
+  "learning_rate": 0.0005,
+  "weight_decay": 0.0001,
+  "dropout": 0.15,
+  "router_dropout": 0.1,
+  "best_epoch": 7,
+  "selection_split": "validation only",
+  "grid_search_version": 1,
+  "selection_metric": "lexicographic NDCG@10, Recall@10, MRR@10; earlier epoch tie-break",
+  "search_max_epochs": 500,
+  "grid_patience": 5,
+  "search_seconds": 499.5405217630014,
+  "resume_overhead_seconds": 508.27520349299994,
+  "selected_validation": {
+    "Recall@10": 0.0887218045112782,
+    "NDCG@10": 0.052708353975619224,
+    "MRR@10": 0.04177586824203366,
+    "Recall@20": 0.12631578947368421,
+    "NDCG@20": 0.06193657668928479,
+    "MRR@20": 0.04416115924315603
+  },
+  "search_space": {
+    "intents": [
+      32,
+      64
+    ],
+    "dims": [
+      64
+    ],
+    "learning_rates": [
+      0.0005,
+      0.001
+    ],
+    "weight_decays": [
+      0.0001
+    ],
+    "dropouts": [
+      0.15
+    ],
+    "router_dropouts": [
+      0.1
+    ]
+  },
+  "completed_trials": 4,
+  "total_trials": 4,
+  "locked_score_weights": {
+    "lambda_z": 0.0,
+    "lambda_next": 0.2,
+    "lambda_fine": 0.2
+  },
+  "confirmatory_validation": {
+    "Recall@10": 0.0887218045112782,
+    "NDCG@10": 0.052708353975619224,
+    "MRR@10": 0.04177586824203366,
+    "Recall@20": 0.12631578947368421,
+    "NDCG@20": 0.06193657668928479,
+    "MRR@20": 0.04416115924315603
+  }
+}
