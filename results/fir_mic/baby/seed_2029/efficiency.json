@@ -1,0 +1,8 @@
+{
+  "trainable_parameters": 371379,
+  "hyperparameter_search_seconds": 454.0105206019998,
+  "train_seconds": 5.197773187000166,
+  "inference_seconds": 0.4291411980002522,
+  "inference_ms_per_user": 0.7058243388162042,
+  "peak_cuda_memory_mb": 314.1044921875
+}

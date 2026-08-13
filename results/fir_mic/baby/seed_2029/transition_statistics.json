@@ -1,0 +1,13 @@
+{
+  "transition_nodes": 64,
+  "active_transition_nodes": 55,
+  "transition_edges": 1358,
+  "graph_density": 0.33154296875,
+  "average_out_degree": 21.21875,
+  "median_out_degree": 23.5,
+  "pct_states_without_outgoing": 0.140625,
+  "mean_transition_entropy": 2.5414900076302094,
+  "pct_test_users_future_state_created": 1.0,
+  "pct_test_users_last_state_has_observed_outgoing": 1.0,
+  "average_usable_transitions_per_user": 1.618421052631579
+}
