@@ -1,0 +1,129 @@
+{
+  "dataset": "clothing",
+  "config": {
+    "seeds": [
+      2022
+    ],
+    "warm_ratio": 0.8,
+    "validation_ratio": 0.1,
+    "alpha": 0.2,
+    "hidden_dim": 128,
+    "image_reduced_dim": 256,
+    "dropout": 0.2,
+    "tau": 0.07,
+    "margin": 0.2,
+    "lambda_top1": 0.5,
+    "epochs": 20,
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "max_sequence_length": 10,
+    "interest_clusters": 3,
+    "interest_aggregation_tau": 0.1,
+    "cluster_iterations": 3,
+    "validation_users_for_checkpoint": 2000,
+    "device": "cuda"
+  },
+  "interactions": 63519,
+  "original_image_shape": [
+    23033,
+    4096
+  ],
+  "original_text_shape": [
+    23033,
+    384
+  ],
+  "warm_items": 14233,
+  "validation_cold_items": 1779,
+  "test_cold_items": 1780,
+  "validation_start_timestamp": 1395187200,
+  "test_start_timestamp": 9461.188737642,
+  "train_samples": 30017,
+  "validation_users": 2571,
+  "test_users": 2095,
+  "prefix_lengths": {
+    "validation": {
+      "1": 239,
+      "2": 1268,
+      "3": 594,
+      "4": 238,
+      "5": 111,
+      "6": 53,
+      "7": 26,
+      "8": 14,
+      "9": 10,
+      "10": 18
+    },
+    "test": {
+      "1": 149,
+      "2": 1021,
+      "3": 496,
+      "4": 176,
+      "5": 105,
+      "6": 54,
+      "7": 30,
+      "8": 25,
+      "9": 7,
+      "10": 32
+    }
+  },
+  "leakage_checks": {
+    "item_sets_disjoint": true,
+    "timestamp_order_valid": true,
+    "cold_item_leakage": false,
+    "train_samples_checked": 30017,
+    "validation_samples_checked": 2571,
+    "test_samples_checked": 2095
+  },
+  "model_checks": {
+    "2022": {
+      "Static score-level": {
+        "best_epoch": 8,
+        "best_validation_NDCG@20": 0.0421034638867271,
+        "train_seconds": 37.61250626400033,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 92.5859375,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 18.148351669311523,
+          "text_projection_grad": 214.39004516601562,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      },
+      "Multi-interest per-item": {
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.04728220908661911,
+        "train_seconds": 39.468278967000515,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 179.90087890625,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 18.04519271850586,
+          "text_projection_grad": 208.55868530273438,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      },
+      "Multi-interest clustered": {
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.046599500725096804,
+        "train_seconds": 55.376036156001646,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 113.6474609375,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 18.100643157958984,
+          "text_projection_grad": 208.7340545654297,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      }
+    }
+  }
+}
