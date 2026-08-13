@@ -1,0 +1,38 @@
+{
+  "dataset": "clothing",
+  "seed": 2025,
+  "status": "completed",
+  "run_signature": "9ef9802049039381",
+  "run_configuration": {
+    "source_branch": "agent/fix-semco-evaluator",
+    "source_commit": "a94b85d903558041b1186e25d89d07ec3ea768a2",
+    "baseline_epochs": 20,
+    "fir_mic_max_epochs": 500,
+    "batch_size": 256,
+    "grid_intents": [
+      32,
+      64
+    ],
+    "grid_dims": [
+      64
+    ],
+    "grid_learning_rates": [
+      0.0005,
+      0.001
+    ],
+    "grid_weight_decays": [
+      0.0001
+    ],
+    "grid_dropouts": [
+      0.15
+    ],
+    "grid_router_dropouts": [
+      0.1
+    ],
+    "grid_patience": 5,
+    "controlled_content_baselines": true,
+    "official_cold_baselines": true,
+    "extended_ablations": true
+  },
+  "completed_at": "2026-08-13T11:24:12.141582+00:00"
+}
