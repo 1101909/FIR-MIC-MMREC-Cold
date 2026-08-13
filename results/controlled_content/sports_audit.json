@@ -1,0 +1,129 @@
+{
+  "dataset": "sports",
+  "config": {
+    "seeds": [
+      2022
+    ],
+    "warm_ratio": 0.8,
+    "validation_ratio": 0.1,
+    "alpha": 0.2,
+    "hidden_dim": 128,
+    "image_reduced_dim": 256,
+    "dropout": 0.2,
+    "tau": 0.07,
+    "margin": 0.2,
+    "lambda_top1": 0.5,
+    "epochs": 20,
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "max_sequence_length": 10,
+    "interest_clusters": 3,
+    "interest_aggregation_tau": 0.1,
+    "cluster_iterations": 3,
+    "validation_users_for_checkpoint": 2000,
+    "device": "cuda"
+  },
+  "interactions": 52391,
+  "original_image_shape": [
+    18357,
+    4096
+  ],
+  "original_text_shape": [
+    18357,
+    384
+  ],
+  "warm_items": 10736,
+  "validation_cold_items": 1342,
+  "test_cold_items": 1343,
+  "validation_start_timestamp": 1392422400,
+  "test_start_timestamp": 14934.608125113,
+  "train_samples": 24767,
+  "validation_users": 1978,
+  "test_users": 1693,
+  "prefix_lengths": {
+    "validation": {
+      "1": 173,
+      "2": 871,
+      "3": 477,
+      "4": 213,
+      "5": 91,
+      "6": 49,
+      "7": 37,
+      "8": 21,
+      "9": 13,
+      "10": 33
+    },
+    "test": {
+      "1": 127,
+      "2": 704,
+      "3": 371,
+      "4": 191,
+      "5": 102,
+      "6": 69,
+      "7": 31,
+      "8": 23,
+      "9": 22,
+      "10": 53
+    }
+  },
+  "leakage_checks": {
+    "item_sets_disjoint": true,
+    "timestamp_order_valid": true,
+    "cold_item_leakage": false,
+    "train_samples_checked": 24767,
+    "validation_samples_checked": 1978,
+    "test_samples_checked": 1693
+  },
+  "model_checks": {
+    "2022": {
+      "Static score-level": {
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.04113638175013953,
+        "train_seconds": 34.3367387319995,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 79.01123046875,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 15.828176498413086,
+          "text_projection_grad": 260.0247802734375,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      },
+      "Multi-interest per-item": {
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.044081458567008396,
+        "train_seconds": 35.83807576400068,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 145.619140625,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 16.351497650146484,
+          "text_projection_grad": 250.025634765625,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      },
+      "Multi-interest clustered": {
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.045186096613682926,
+        "train_seconds": 50.34752213499996,
+        "trainable_parameters": 82176,
+        "peak_cuda_memory_mb": 93.37646484375,
+        "gradient_check": {
+          "features_frozen": true,
+          "image_projection_grad": 16.39299774169922,
+          "text_projection_grad": 251.11245727539062,
+          "image_gru_grad": null,
+          "text_gru_grad": null,
+          "length_gate_grad": null
+        },
+        "loss_decreased": true
+      }
+    }
+  }
+}
