@@ -25,8 +25,13 @@ def write_csv(path, rows):
     if not rows:
         return
     path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    # Evidence rows from different model families are intentionally sparse.
+    # For example, only FIR-MIC reports hyperparameter-search time, while the
+    # controlled baselines report other efficiency fields.  Preserve the
+    # first-seen column order, but include fields found in every row.
+    fieldnames = list(dict.fromkeys(key for row in rows for key in row))
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader(); writer.writerows(rows)
 
 
