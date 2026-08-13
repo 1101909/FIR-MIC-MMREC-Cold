@@ -1,0 +1,15 @@
+{
+  "users": 4952,
+  "warm_items": 3830,
+  "validation_cold_items": 479,
+  "test_cold_items": 479,
+  "train_interactions": 14068,
+  "train_sequence_samples": 7378,
+  "validation_interactions": 665,
+  "test_interactions": 608,
+  "average_history_length": 2.6891447368421053,
+  "median_history_length": 2.0,
+  "pct_users_history_ge_2": 0.8569078947368421,
+  "pct_users_history_ge_5": 0.09868421052631579,
+  "cold_candidates_per_user": 479
+}
