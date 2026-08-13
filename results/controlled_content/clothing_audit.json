@@ -2,7 +2,7 @@
   "dataset": "clothing",
   "config": {
     "seeds": [
-      2027
+      2028
     ],
     "warm_ratio": 0.8,
     "validation_ratio": 0.1,
@@ -36,7 +36,7 @@
   "validation_cold_items": 1779,
   "test_cold_items": 1780,
   "validation_start_timestamp": 1395187200,
-  "test_start_timestamp": 31944.870275782,
+  "test_start_timestamp": 36433.352738395,
   "train_samples": 30017,
   "validation_users": 2571,
   "test_users": 2095,
@@ -75,17 +75,17 @@
     "test_samples_checked": 2095
   },
   "model_checks": {
-    "2027": {
+    "2028": {
       "Static score-level": {
-        "best_epoch": 5,
-        "best_validation_NDCG@20": 0.04167378319751809,
-        "train_seconds": 39.9547048989989,
+        "best_epoch": 9,
+        "best_validation_NDCG@20": 0.0415219204892049,
+        "train_seconds": 38.74790261100134,
         "trainable_parameters": 82176,
-        "peak_cuda_memory_mb": 93.0732421875,
+        "peak_cuda_memory_mb": 92.5859375,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.53624153137207,
-          "text_projection_grad": 220.96498107910156,
+          "image_projection_grad": 17.311275482177734,
+          "text_projection_grad": 190.63133239746094,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -93,15 +93,15 @@
         "loss_decreased": true
       },
       "Multi-interest per-item": {
-        "best_epoch": 6,
-        "best_validation_NDCG@20": 0.04701311968306583,
-        "train_seconds": 41.65813578699817,
+        "best_epoch": 7,
+        "best_validation_NDCG@20": 0.04623172069226588,
+        "train_seconds": 40.412094847000844,
         "trainable_parameters": 82176,
-        "peak_cuda_memory_mb": 180.35302734375,
+        "peak_cuda_memory_mb": 180.69482421875,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.3508882522583,
-          "text_projection_grad": 214.16717529296875,
+          "image_projection_grad": 17.106460571289062,
+          "text_projection_grad": 186.02001953125,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -109,15 +109,15 @@
         "loss_decreased": true
       },
       "Multi-interest clustered": {
-        "best_epoch": 8,
-        "best_validation_NDCG@20": 0.04635707265218423,
-        "train_seconds": 58.64813909199802,
+        "best_epoch": 2,
+        "best_validation_NDCG@20": 0.04614086863524701,
+        "train_seconds": 57.026246729001286,
         "trainable_parameters": 82176,
-        "peak_cuda_memory_mb": 113.697265625,
+        "peak_cuda_memory_mb": 114.26171875,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.373849868774414,
-          "text_projection_grad": 214.07791137695312,
+          "image_projection_grad": 17.088241577148438,
+          "text_projection_grad": 186.33792114257812,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
