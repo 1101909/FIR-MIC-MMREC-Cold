@@ -1,0 +1,75 @@
+{
+  "dataset": "baby",
+  "seed": 2024,
+  "epochs": 20,
+  "results": {
+    "semco": {
+      "validation": {
+        "Recall@10": 0.06015037593984962,
+        "NDCG@10": 0.03329581782388582,
+        "MRR@10": 0.025248836376655925,
+        "Recall@20": 0.09774436090225563,
+        "NDCG@20": 0.04278356859532351,
+        "MRR@20": 0.027852783146202452
+      },
+      "test": {
+        "Recall@10": 0.04276315789473684,
+        "NDCG@10": 0.01914595920764404,
+        "MRR@10": 0.012307461361737678,
+        "Recall@20": 0.07730263157894737,
+        "NDCG@20": 0.02785823114433384,
+        "MRR@20": 0.014691486686914014
+      },
+      "diagnostics": {
+        "validation": {
+          "users": 665,
+          "candidates": 479,
+          "zero_norm_users": 0,
+          "all_equal_score_users": 0,
+          "mean_target_ties": 1.0,
+          "max_target_ties": 1
+        },
+        "test": {
+          "users": 608,
+          "candidates": 479,
+          "zero_norm_users": 0,
+          "all_equal_score_users": 0,
+          "mean_target_ties": 1.0,
+          "max_target_ties": 1
+        }
+      },
+      "efficiency": {
+        "trainable_parameters": 874434,
+        "train_seconds": 12.662363168999946,
+        "inference_seconds": 0.5977378100005808,
+        "inference_ms_per_user": 0.46955051846078616,
+        "peak_cuda_memory_mb": 243.9990234375
+      }
+    },
+    "clcrec": {
+      "validation": {
+        "Recall@10": 0.02706766917293233,
+        "NDCG@10": 0.013331508774548698,
+        "MRR@10": 0.009288697935314477,
+        "Recall@20": 0.05714285714285714,
+        "NDCG@20": 0.020836212819732206,
+        "MRR@20": 0.011298899907224123
+      },
+      "test": {
+        "Recall@10": 0.023026315789473683,
+        "NDCG@10": 0.009408515347073784,
+        "MRR@10": 0.005297096908939014,
+        "Recall@20": 0.05098684210526316,
+        "NDCG@20": 0.01636519884605033,
+        "MRR@20": 0.0071476643649020215
+      },
+      "efficiency": {
+        "trainable_parameters": 1784512,
+        "train_seconds": 103.04848307799966,
+        "inference_seconds": 0.372796971999378,
+        "inference_ms_per_user": 0.2928491531809725,
+        "peak_cuda_memory_mb": 437.1142578125
+      }
+    }
+  }
+}
