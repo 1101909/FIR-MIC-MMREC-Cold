@@ -49,6 +49,10 @@ def main():
         help="Maximum validation-selected FIR-MIC epoch; defaults to --epochs",
     )
     parser.add_argument("--batch-size", type=int, default=256)
+    parser.add_argument(
+        "--semco-batch-size", type=int, default=2048,
+        help="SEMCo batch size; 2048 matches the pinned upstream configuration",
+    )
     parser.add_argument("--grid-intents", nargs="+", type=int, default=[32, 64])
     parser.add_argument("--grid-dims", nargs="+", type=int, default=[64])
     parser.add_argument("--grid-learning-rates", nargs="+", type=float,
@@ -89,7 +93,7 @@ def main():
         run(["git", "submodule", "update", "--init", "external/SEMCo", "external/CLCRec"])
         for dataset in args.datasets:
             for seed in args.seeds:
-                run([sys.executable,"scripts/run_official_cold_baselines.py","--data-dir",data,"--dataset",dataset,"--models","semco","clcrec","--seed",seed,"--epochs",args.epochs,"--batch-size",args.batch_size,"--output",out/"official"/dataset/f"seed_{seed}.json"])
+                run([sys.executable,"scripts/run_official_cold_baselines.py","--data-dir",data,"--dataset",dataset,"--models","semco","clcrec","--seed",seed,"--epochs",args.epochs,"--batch-size",args.batch_size,"--semco-batch-size",args.semco_batch_size,"--output",out/"official"/dataset/f"seed_{seed}.json"])
 
     for dataset in args.datasets:
         for seed in args.seeds:

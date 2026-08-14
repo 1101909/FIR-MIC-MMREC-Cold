@@ -1,7 +1,8 @@
-"""Run unmodified official SEMCo and CLCRec model classes on MMREC-COLD.
+"""Run pinned official SEMCo and CLCRec model classes on MMREC-COLD.
 
 Only data indexing and the common full-cold evaluator are project-owned. Model
-layers and losses are imported from pinned GitHub submodules.
+layers and losses are imported from pinned GitHub submodules. Runtime
+compatibility fixes and invariant-input caching preserve their equations.
 """
 from __future__ import annotations
 import argparse, csv, json, math, random, sys, time
@@ -92,6 +93,41 @@ def patch_semco_compat(databuilder,evaluator):
   _ranking_evaluation._empty_safe=True
   evaluator.ranking_evaluation=_ranking_evaluation
 
+def patch_semco_runtime(semco_module,semco_utils):
+ # PyTorch 2.6 deprecates the legacy sparse constructor used by the pinned
+ # commit. Patch both references because SEMCo imported the helper directly.
+ def _sparse_coo(sparse_mx):
+  sparse_mx=sparse_mx.tocoo().astype(np.float32)
+  indices=torch.from_numpy(np.vstack((sparse_mx.row,sparse_mx.col)).astype(np.int64))
+  values=torch.from_numpy(sparse_mx.data)
+  return torch.sparse_coo_tensor(indices,values,torch.Size(sparse_mx.shape),dtype=torch.float32)
+ semco_utils.sparse_mx_to_torch_sparse_tensor=_sparse_coo
+ semco_module.sparse_mx_to_torch_sparse_tensor=_sparse_coo
+
+ # Upstream gathers the same full warm-item feature slice from every modality
+ # on every mini-batch. On MMREC-COLD this repeated advanced-index copy is a
+ # major GPU bottleneck. Cache the immutable input slice once; parameters,
+ # normalization, losses, and gradients remain exactly upstream-equivalent.
+ learner=semco_module.SEMCo_Learner
+ if not getattr(learner,'_warm_features_cached',False):
+  upstream_init=learner.__init__
+  upstream_forward=learner.forward
+  def _init(self,*args,**kwargs):
+   upstream_init(self,*args,**kwargs)
+   warm_idx=torch.as_tensor(self.data.mapped_warm_item_idx,dtype=torch.long,device=self.feats_raw[0].device)
+   self.feats_warm=[arr.index_select(0,warm_idx) for arr in self.feats_raw]
+  def _forward(self,perturbed=False,user_idx=None):
+   if not perturbed:
+    return upstream_forward(self,perturbed=False,user_idx=user_idx)
+   interaction=semco_module.sparse_mx_to_torch_sparse_tensor(self.inter_mat_scaled[user_idx]).cuda()
+   feats=[self.feats_layers[i](arr) for i,arr in enumerate(self.feats_warm)]
+   feats_out=self.final_layer(self.fuser(feats))
+   user_vecs=torch.sparse.mm(interaction,F.normalize(feats_out))
+   return F.normalize(user_vecs),F.normalize(feats_out)
+  learner.__init__=_init
+  learner.forward=_forward
+  learner._warm_features_cached=True
+
 def run_semco(data,dataset,epochs,batch,seed):
  sem=ROOT/'external/SEMCo';sys.path.insert(0,str(sem))
  # The pinned SEMCo commit exports only cold-start builders, while its shared
@@ -104,7 +140,10 @@ def run_semco(data,dataset,epochs,batch,seed):
  # runtime so the official model code can complete its internal validation.
  import util.evaluator as semco_evaluator
  patch_semco_compat(semco_databuilder,semco_evaluator)
- from models.SEMCo import SEMCo
+ import util.utils as semco_utils
+ import models.SEMCo as semco_module
+ patch_semco_runtime(semco_module,semco_utils)
+ SEMCo=semco_module.SEMCo
  _,warm,val,test,pairs,valid,tests=raw_sets(data,dataset)
  image=l2_blocks(np.load(data/dataset/'image_feat.npy',mmap_mode='r'));text=l2_blocks(np.load(data/dataset/'text_feat.npy',mmap_mode='r'))
  triple=lambda rows:[[int(u),int(i),1.] for u,i in rows]
@@ -121,7 +160,10 @@ def run_semco(data,dataset,epochs,batch,seed):
  overall_v=v+registry
  args=SimpleNamespace(topN='10,20',model='SEMCo',dataset=dataset,emb_size=64,epochs=epochs,bs=batch,lr=.001,reg=.001,patience=10,decay_lr_epoch=[False,epochs],emb_sizes=(192,64),eval_batch_size=2048,sm_scale=12.,fn='sparsemax')
  if torch.cuda.is_available():torch.cuda.reset_peak_memory_stats()
- model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text])
+ # Zero-degree synthetic/metadata nodes are expected and mapped to zero by the
+ # upstream builders. Suppress only their benign intermediate divide warning.
+ with np.errstate(divide='ignore',invalid='ignore'):
+  model=SEMCo(args,train,empty,v,overall_v,empty,te,te,registry_user+1,len(items),users,sorted(warm),[],sorted(val|test),torch.device('cuda'),item_content=[image,text])
  train_start=time.perf_counter();model.train();train_seconds=time.perf_counter()-train_start
  # Keep the official learned item encoder, but construct RY from each sample's
  # exact temporal prefix. The common evaluator restricts each split to its own
@@ -168,8 +210,8 @@ def run_clcrec(data,dataset,epochs,batch,seed):
                        'inference_ms_per_user':1000*inference_seconds/(len(valid)+len(tests)),
                        'peak_cuda_memory_mb':torch.cuda.max_memory_allocated()/(1024**2)}}
 def main():
- p=argparse.ArgumentParser();p.add_argument('--data-dir',type=Path,required=True);p.add_argument('--dataset',choices=['baby','clothing','sports'],required=True);p.add_argument('--models',nargs='+',choices=['semco','clcrec'],default=['semco','clcrec']);p.add_argument('--epochs',type=int,default=1);p.add_argument('--batch-size',type=int,default=256);p.add_argument('--seed',type=int,default=2022);p.add_argument('--output',type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);torch.manual_seed(a.seed);np.random.seed(a.seed);random.seed(a.seed)
+ p=argparse.ArgumentParser();p.add_argument('--data-dir',type=Path,required=True);p.add_argument('--dataset',choices=['baby','clothing','sports'],required=True);p.add_argument('--models',nargs='+',choices=['semco','clcrec'],default=['semco','clcrec']);p.add_argument('--epochs',type=int,default=1);p.add_argument('--batch-size',type=int,default=256,help='CLCRec training batch size');p.add_argument('--semco-batch-size',type=int,default=2048,help='SEMCo training batch size (upstream default: 2048)');p.add_argument('--seed',type=int,default=2022);p.add_argument('--output',type=Path,required=True);a=p.parse_args();a.output.parent.mkdir(parents=True,exist_ok=True);torch.manual_seed(a.seed);np.random.seed(a.seed);random.seed(a.seed)
  out={};
- for name in a.models:out[name]=run_semco(a.data_dir,a.dataset,a.epochs,a.batch_size,a.seed) if name=='semco' else run_clcrec(a.data_dir,a.dataset,a.epochs,a.batch_size,a.seed)
+ for name in a.models:out[name]=run_semco(a.data_dir,a.dataset,a.epochs,a.semco_batch_size,a.seed) if name=='semco' else run_clcrec(a.data_dir,a.dataset,a.epochs,a.batch_size,a.seed)
  a.output.write_text(json.dumps({'dataset':a.dataset,'seed':a.seed,'epochs':a.epochs,'results':out},indent=2));print(json.dumps(out))
 if __name__=='__main__':main()
