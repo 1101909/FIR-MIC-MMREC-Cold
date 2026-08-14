@@ -2,7 +2,7 @@
   "dataset": "sports",
   "config": {
     "seeds": [
-      2025
+      2026
     ],
     "warm_ratio": 0.8,
     "validation_ratio": 0.1,
@@ -36,7 +36,7 @@
   "validation_cold_items": 1342,
   "test_cold_items": 1343,
   "validation_start_timestamp": 1392422400,
-  "test_start_timestamp": 24354.446265408,
+  "test_start_timestamp": 27380.817902319,
   "train_samples": 24767,
   "validation_users": 1978,
   "test_users": 1693,
@@ -75,17 +75,17 @@
     "test_samples_checked": 1693
   },
   "model_checks": {
-    "2025": {
+    "2026": {
       "Static score-level": {
-        "best_epoch": 15,
-        "best_validation_NDCG@20": 0.04010657674490618,
-        "train_seconds": 34.30302221499733,
+        "best_epoch": 7,
+        "best_validation_NDCG@20": 0.041182412174853245,
+        "train_seconds": 34.430109535001975,
         "trainable_parameters": 82176,
         "peak_cuda_memory_mb": 79.01123046875,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.393421173095703,
-          "text_projection_grad": 279.7781982421875,
+          "image_projection_grad": 18.294116973876953,
+          "text_projection_grad": 269.7547607421875,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -93,15 +93,15 @@
         "loss_decreased": true
       },
       "Multi-interest per-item": {
-        "best_epoch": 18,
-        "best_validation_NDCG@20": 0.044343638795084975,
-        "train_seconds": 36.14568516500003,
+        "best_epoch": 6,
+        "best_validation_NDCG@20": 0.04435983296834764,
+        "train_seconds": 35.67322655499811,
         "trainable_parameters": 82176,
-        "peak_cuda_memory_mb": 145.37109375,
+        "peak_cuda_memory_mb": 145.619140625,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.532453536987305,
-          "text_projection_grad": 267.41534423828125,
+          "image_projection_grad": 18.36962127685547,
+          "text_projection_grad": 264.7154541015625,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
@@ -109,15 +109,15 @@
         "loss_decreased": true
       },
       "Multi-interest clustered": {
-        "best_epoch": 18,
-        "best_validation_NDCG@20": 0.04590692247241799,
-        "train_seconds": 50.19248542200148,
+        "best_epoch": 13,
+        "best_validation_NDCG@20": 0.04441651316525275,
+        "train_seconds": 50.14559078300226,
         "trainable_parameters": 82176,
         "peak_cuda_memory_mb": 93.37646484375,
         "gradient_check": {
           "features_frozen": true,
-          "image_projection_grad": 15.54132080078125,
-          "text_projection_grad": 267.575927734375,
+          "image_projection_grad": 18.384841918945312,
+          "text_projection_grad": 266.767333984375,
           "image_gru_grad": null,
           "text_gru_grad": null,
           "length_gate_grad": null
