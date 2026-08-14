@@ -48,7 +48,10 @@ to GitHub after every completed dataset/seed, paste the complete contents of
 `kaggle/run_and_push_results.py` into one Kaggle cell. Add a private Kaggle
 Secret named `GITHUB_TOKEN` first; it needs Contents read/write access to this
 repository. Results are pushed to `kaggle-results-gridsearch-v1`, while large
-`.pt` files remain only in the Kaggle working directory.
+`.pt` files remain only in the Kaggle working directory. Re-running the same
+cell safely skips completed dataset/seed pairs and continues the first
+unfinished pair on that same results branch, provided experimental
+hyperparameters have not changed.
 
 Official submodules are audit sources and are not required for FIR-MIC itself.
 Initialize only an eligible baseline when it is actually scheduled, for example:

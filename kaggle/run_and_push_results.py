@@ -35,6 +35,10 @@ SEEDS = list(range(2022, 2032))
 BASELINE_EPOCHS = 20
 FIR_MIC_MAX_EPOCHS = 500
 BATCH_SIZE = 256
+# Preserve the v1 experiment's SEMCo optimizer batch size.  The standalone
+# runner defaults to upstream's 2048 for new experiments, but changing it in a
+# nearly-complete result series would mix incompatible training configurations.
+SEMCO_BATCH_SIZE = BATCH_SIZE
 
 GRID_INTENTS = [32, 64]
 GRID_DIMS = [64]
@@ -161,6 +165,7 @@ run_configuration = {
     "baseline_epochs": BASELINE_EPOCHS,
     "fir_mic_max_epochs": FIR_MIC_MAX_EPOCHS,
     "batch_size": BATCH_SIZE,
+    "semco_batch_size": SEMCO_BATCH_SIZE,
     "grid_intents": GRID_INTENTS,
     "grid_dims": GRID_DIMS,
     "grid_learning_rates": GRID_LEARNING_RATES,
@@ -172,8 +177,24 @@ run_configuration = {
     "official_cold_baselines": RUN_OFFICIAL_COLD_BASELINES,
     "extended_ablations": RUN_EXTENDED_ABLATIONS,
 }
+def experiment_configuration(configuration):
+    """Return only fields that affect experimental results.
+
+    Source revisions are retained in each marker for provenance, but a runner
+    bug fix must not invalidate completed seeds when all experimental settings
+    remain identical.  Markers created before ``semco_batch_size`` existed used
+    the shared batch size for SEMCo, so normalize that legacy representation.
+    """
+    normalized = dict(configuration)
+    normalized.pop("source_branch", None)
+    normalized.pop("source_commit", None)
+    normalized.setdefault("semco_batch_size", normalized.get("batch_size"))
+    return normalized
+
+
+experiment_config = experiment_configuration(run_configuration)
 run_signature = hashlib.sha256(
-    json.dumps(run_configuration, sort_keys=True).encode("utf-8")
+    json.dumps(experiment_config, sort_keys=True).encode("utf-8")
 ).hexdigest()[:16]
 
 
@@ -224,8 +245,11 @@ for dataset in DATASETS:
         marker = checkpoint_dir / dataset / f"seed_{seed}.json"
         if marker.exists():
             marker_data = json.loads(marker.read_text(encoding="utf-8"))
+            marker_config = experiment_configuration(
+                marker_data.get("run_configuration", {})
+            )
             if (marker_data.get("status") == "completed"
-                    and marker_data.get("run_signature") == run_signature):
+                    and marker_config == experiment_config):
                 print(f"\nSKIP COMPLETED: dataset={dataset}, seed={seed}", flush=True)
                 continue
             raise RuntimeError(
@@ -242,6 +266,7 @@ for dataset in DATASETS:
             "--epochs", BASELINE_EPOCHS,
             "--fir-mic-max-epochs", FIR_MIC_MAX_EPOCHS,
             "--batch-size", BATCH_SIZE,
+            "--semco-batch-size", SEMCO_BATCH_SIZE,
             "--grid-intents", *GRID_INTENTS,
             "--grid-dims", *GRID_DIMS,
             "--grid-learning-rates", *GRID_LEARNING_RATES,
