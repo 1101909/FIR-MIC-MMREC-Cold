@@ -1,0 +1,39 @@
+{
+  "dataset": "sports",
+  "seed": 2031,
+  "status": "completed",
+  "run_signature": "e1b19d7980f1188f",
+  "run_configuration": {
+    "source_branch": "agent/fix-semco-evaluator",
+    "source_commit": "f68c1c1d75027a786a18c1957e70b76d196f023e",
+    "baseline_epochs": 20,
+    "fir_mic_max_epochs": 500,
+    "batch_size": 256,
+    "semco_batch_size": 256,
+    "grid_intents": [
+      32,
+      64
+    ],
+    "grid_dims": [
+      64
+    ],
+    "grid_learning_rates": [
+      0.0005,
+      0.001
+    ],
+    "grid_weight_decays": [
+      0.0001
+    ],
+    "grid_dropouts": [
+      0.15
+    ],
+    "grid_router_dropouts": [
+      0.1
+    ],
+    "grid_patience": 5,
+    "controlled_content_baselines": true,
+    "official_cold_baselines": true,
+    "extended_ablations": true
+  },
+  "completed_at": "2026-08-14T05:43:36.753974+00:00"
+}
