@@ -20,6 +20,26 @@ test-set model selection. The calibration objective prioritizes the bottom
 quartile of validation target-anchor percentile while guarding overall and
 easy-subset NDCG@10.
 
+## Quick method check when historical weights are missing
+
+Historical GitHub logs can skip the complete grid search, but JSON logs do not
+contain model weights. For a fast Baby seed-2022 check, rebuild only the
+GitHub-selected confirmatory model (7 epochs), then run the post-hoc gate:
+
+```python
+%cd /kaggle/working/FIR-MIC-MMREC-Cold
+!git pull --ff-only origin agent/fix-semco-evaluator
+!python -u kaggle/run_gated_quick_test.py \
+  --data-dir /kaggle/input/datasets/toanktxd/mmrec-cold \
+  --dataset baby \
+  --seed 2022
+```
+
+This reads `optimal_config.json` from the GitHub results branch and skips all
+four grid trials, controlled/official baselines, and modality ablations. It
+fits only the locked final model, saves a compact learned-only checkpoint, and
+then reports original versus gated metrics, including Q4-high.
+
 ## Kaggle: run one existing checkpoint
 
 Run these lines in a Kaggle code cell. The leading `!` is required because

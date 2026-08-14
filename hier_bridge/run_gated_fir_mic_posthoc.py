@@ -186,9 +186,9 @@ def load_checkpoint_model(checkpoint_path: Path, optimal: dict, image, text, dev
 
     # These buffers are data, not learned weights.  Use the current normalized
     # feature arrays and an unused teacher placeholder during inference.
-    ignored_buffers = {name for name in ("image", "text", "teacher") if name in state}
-    for name in ignored_buffers:
-        state.pop(name)
+    data_buffers = {"image", "text", "teacher"}
+    for name in data_buffers:
+        state.pop(name, None)
     teacher = torch.zeros((image.shape[0], optimal["intents"]), device=device)
     model = FIRMIC(
         image, text, teacher, optimal["intents"], optimal["dim"], 10,
@@ -196,7 +196,7 @@ def load_checkpoint_model(checkpoint_path: Path, optimal: dict, image, text, dev
         router_dropout=optimal["router_dropout"],
     ).to(device)
     incompatible = model.load_state_dict(state, strict=False)
-    if set(incompatible.missing_keys) != ignored_buffers or incompatible.unexpected_keys:
+    if set(incompatible.missing_keys) != data_buffers or incompatible.unexpected_keys:
         raise RuntimeError(
             f"Incompatible checkpoint; missing={incompatible.missing_keys}, "
             f"unexpected={incompatible.unexpected_keys}"
