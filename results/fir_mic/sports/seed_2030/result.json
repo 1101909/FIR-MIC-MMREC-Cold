@@ -1,0 +1,149 @@
+{
+  "method": "FIR-MIC",
+  "dataset": "sports",
+  "seed": 2030,
+  "device": "cuda",
+  "protocol": "strict temporal item-cold full ranking; warm-only pseudo-cold training",
+  "features": "original image4096 and text384 consumed by separate full-input adapters",
+  "intents": 32,
+  "dim": 64,
+  "epochs": 12,
+  "search_max_epochs": 500,
+  "optimal_config": {
+    "trial": 2,
+    "intents": 32,
+    "dim": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "dropout": 0.15,
+    "router_dropout": 0.1,
+    "best_epoch": 12,
+    "selection_split": "validation only",
+    "grid_search_version": 1,
+    "selection_metric": "lexicographic NDCG@10, Recall@10, MRR@10; earlier epoch tie-break",
+    "search_max_epochs": 500,
+    "grid_patience": 5,
+    "search_seconds": 2160.3360284370065,
+    "resume_overhead_seconds": 2205.978564408004,
+    "selected_validation": {
+      "Recall@10": 0.06370070778564206,
+      "NDCG@10": 0.03316848091210341,
+      "MRR@10": 0.023964000834577174,
+      "Recall@20": 0.08645096056622852,
+      "NDCG@20": 0.038801453948647854,
+      "MRR@20": 0.025448307376491085
+    },
+    "search_space": {
+      "intents": [
+        32,
+        64
+      ],
+      "dims": [
+        64
+      ],
+      "learning_rates": [
+        0.0005,
+        0.001
+      ],
+      "weight_decays": [
+        0.0001
+      ],
+      "dropouts": [
+        0.15
+      ],
+      "router_dropouts": [
+        0.1
+      ]
+    },
+    "completed_trials": 4,
+    "total_trials": 4,
+    "locked_score_weights": {
+      "lambda_z": 0.1,
+      "lambda_next": 0.2,
+      "lambda_fine": 0.1
+    },
+    "confirmatory_validation": {
+      "Recall@10": 0.06370070778564206,
+      "NDCG@10": 0.03316848091210341,
+      "MRR@10": 0.023964000834577174,
+      "Recall@20": 0.08645096056622852,
+      "NDCG@20": 0.038801453948647854,
+      "MRR@20": 0.025448307376491085
+    }
+  },
+  "train_samples_original": 24767,
+  "train_samples_pseudo_cold": 22370,
+  "validation_users": 1978,
+  "test_users": 1693,
+  "validation_locked": {
+    "lambda_z": 0.1,
+    "lambda_next": 0.2,
+    "lambda_fine": 0.1
+  },
+  "test": {
+    "Recall@10": 0.06024808033077377,
+    "NDCG@10": 0.03349667526898537,
+    "MRR@10": 0.025378542832766103,
+    "Recall@20": 0.09214412285883047,
+    "NDCG@20": 0.041581061076067766,
+    "MRR@20": 0.027606907034809943
+  },
+  "route_diagnostics": {
+    "mean_predicted_stay": 0.12271052431282177,
+    "mean_target_stay_similarity": 0.0758886829467476,
+    "stay_spearman_proxy": 0.07279479439505764,
+    "median_split_auc": 0.5324047325981562
+  },
+  "transition_statistics": {
+    "transition_nodes": 32,
+    "active_transition_nodes": 1,
+    "transition_edges": 2,
+    "graph_density": 0.001953125,
+    "average_out_degree": 0.0625,
+    "median_out_degree": 0.0,
+    "pct_states_without_outgoing": 0.96875,
+    "mean_transition_entropy": 0.0004488733884794656,
+    "pct_test_users_future_state_created": 1.0,
+    "pct_test_users_last_state_has_observed_outgoing": 1.0,
+    "average_usable_transitions_per_user": 2.227997637330183
+  },
+  "protocol_statistics": {
+    "users": 13181,
+    "warm_items": 10736,
+    "validation_cold_items": 1342,
+    "test_cold_items": 1343,
+    "train_interactions": 41693,
+    "train_sequence_samples": 24767,
+    "validation_interactions": 1978,
+    "test_interactions": 1693,
+    "average_history_length": 3.227997637330183,
+    "median_history_length": 3.0,
+    "pct_users_history_ge_2": 0.9249852333136445,
+    "pct_users_history_ge_5": 0.1772002362669817,
+    "cold_candidates_per_user": 1343
+  },
+  "efficiency": {
+    "trainable_parameters": 363155,
+    "hyperparameter_search_seconds": 2160.3360284370065,
+    "train_seconds": 110.54671090299962,
+    "inference_seconds": 1.6515530399992713,
+    "inference_ms_per_user": 0.9755186296510757,
+    "peak_cuda_memory_mb": 510.69775390625
+  },
+  "intent_initialization": {
+    "fit_items": "warm-only",
+    "intents": 32,
+    "min_warm_cluster": 152,
+    "max_warm_cluster": 659
+  },
+  "leakage_checks": {
+    "item_sets_disjoint": true,
+    "timestamp_order_valid": true,
+    "cold_item_leakage": false,
+    "train_samples_checked": 24767,
+    "validation_samples_checked": 1978,
+    "test_samples_checked": 1693
+  },
+  "preprocessing_seconds": 0.7285531859961338,
+  "train_seconds": 110.54671090299962
+}
