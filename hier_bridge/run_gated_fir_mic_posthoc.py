@@ -231,7 +231,7 @@ def parse_args():
     parser.add_argument("--run-dir", type=Path,
                         help="Existing seed directory containing model.pt and optimal_config.json")
     parser.add_argument("--output-dir", type=Path,
-                        help="Defaults to RUN_DIR/gated_posthoc")
+                        help="Defaults to local results/fir_mic/DATASET/seed_SEED/gated_posthoc")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--gate-w1", nargs="+", type=float, default=[0.0, 2.0, 4.0, 8.0])
@@ -249,17 +249,46 @@ def parse_args():
     return args
 
 
+def discover_run_dir(dataset: str, seed: int, local_run_dir: Path) -> Path:
+    """Find a preserved Kaggle Notebook Output when the working copy lacks it."""
+    if (local_run_dir / "model.pt").exists():
+        return local_run_dir
+    kaggle_input = Path("/kaggle/input")
+    if not kaggle_input.exists():
+        return local_run_dir
+    suffix = Path("results") / "fir_mic" / dataset / f"seed_{seed}" / "model.pt"
+    matches = sorted(
+        path for path in kaggle_input.glob(f"**/{suffix.as_posix()}")
+        if path.is_file()
+    )
+    if not matches:
+        return local_run_dir
+    if len(matches) > 1:
+        print(
+            "Multiple attached checkpoints found; using the first one: "
+            f"{matches[0]}. Override with --run-dir if needed.",
+            flush=True,
+        )
+    else:
+        print(f"Using attached Kaggle checkpoint: {matches[0]}", flush=True)
+    return matches[0].parent
+
+
 def main():
     args = parse_args()
-    run_dir = args.run_dir or ROOT / "results" / "fir_mic" / args.dataset / f"seed_{args.seed}"
-    output_dir = args.output_dir or run_dir / "gated_posthoc"
+    local_run_dir = ROOT / "results" / "fir_mic" / args.dataset / f"seed_{args.seed}"
+    run_dir = args.run_dir or discover_run_dir(args.dataset, args.seed, local_run_dir)
+    # Kaggle inputs are read-only, so recovered checkpoints must still write
+    # their small post-hoc artifacts to the working repository.
+    output_dir = args.output_dir or local_run_dir / "gated_posthoc"
     checkpoint_path = run_dir / "model.pt"
     optimal_path = run_dir / "optimal_config.json"
     if not checkpoint_path.exists():
         raise FileNotFoundError(
             f"Missing {checkpoint_path}. Post-hoc gating needs the trained model.pt; "
             "the uploaded rank/result CSV files cannot reconstruct candidate-level component scores. "
-            "Run this in the preserved Kaggle session that still contains model.pt."
+            "Attach the previous Kaggle Notebook Output that contains this checkpoint "
+            "as an input, or run in the preserved session that still contains model.pt."
         )
     if not optimal_path.exists():
         raise FileNotFoundError(f"Missing {optimal_path}")

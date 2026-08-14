@@ -44,6 +44,17 @@ Change `--dataset` and `--seed` to test another preserved checkpoint. The
 runner never starts training. It stops immediately with a clear error if
 `model.pt` is absent.
 
+If the checkpoint belongs to an older saved Kaggle notebook version, open that
+version's **Output** page and choose **New Notebook** (or add that notebook
+output through **Add Input**). The runner automatically searches attached
+outputs below `/kaggle/input` and writes new results back to `/kaggle/working`.
+
+You can verify what was attached with:
+
+```python
+!find /kaggle/input /kaggle/working -type f -path '*/results/fir_mic/baby/seed_2022/model.pt' -print
+```
+
 ## Important checkpoint limitation
 
 The existing GitHub results branch contains small `.json`, `.csv`, `.md`, and
@@ -74,4 +85,3 @@ run succeeds:
 !git commit -m "Add Baby seed 2022 Gated-FIR-MIC post-hoc results"
 !git push origin HEAD
 ```
-
