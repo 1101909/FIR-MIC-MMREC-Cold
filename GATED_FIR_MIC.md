@@ -30,7 +30,7 @@ GitHub-selected confirmatory model (7 epochs), then run the post-hoc gate:
 %cd /kaggle/working/FIR-MIC-MMREC-Cold
 !git pull --ff-only origin agent/fix-semco-evaluator
 !python -u kaggle/run_gated_quick_test.py \
-  --data-dir /kaggle/input/datasets/toanktxd/mmrec-cold \
+  --data-dir /kaggle/input/datasets/toanktx/mmrec-cold \
   --dataset baby \
   --seed 2022
 ```
@@ -49,7 +49,7 @@ these are shell commands, not Python syntax.
 %cd /kaggle/working/FIR-MIC-MMREC-Cold
 !git pull
 !python -u hier_bridge/run_gated_fir_mic_posthoc.py \
-  --data-dir /kaggle/input/datasets/toanktxd/mmrec-cold \
+  --data-dir /kaggle/input/datasets/toanktx/mmrec-cold \
   --dataset baby \
   --seed 2022
 ```

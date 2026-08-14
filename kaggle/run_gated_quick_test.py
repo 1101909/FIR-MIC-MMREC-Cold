@@ -28,6 +28,7 @@ from run_fir_mic_seed import FIRMIC, reset_random_state, teacher_for_modality, t
 from run_intent_interpolation_seed import l2_blocks
 from run_mmrec_seq_scl import Config, build_samples, leakage_checks, read_interactions, temporal_item_split
 from run_soft_intent_bridge_v2_seed import pseudo_cold
+from run_gpu import resolve_mmrec
 
 
 def write_csv(path: Path, rows: list[dict]) -> None:
@@ -80,6 +81,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    data_dir = resolve_mmrec(str(args.data_dir))
     output_dir = args.output_dir or (
         ROOT / "results" / "gated_rebuild" / args.dataset / f"seed_{args.seed}"
     )
@@ -117,7 +119,7 @@ def main():
         "locked_score_weights": locked,
     }, indent=2), flush=True)
 
-    data_root = args.data_dir / args.dataset
+    data_root = data_dir / args.dataset
     interactions = read_interactions(data_root, args.dataset)
     warm, validation_cold, test_cold, cutoff, _ = temporal_item_split(
         interactions, Config(max_sequence_length=10)
@@ -193,7 +195,7 @@ def main():
     gated_output = output_dir / "gated_posthoc"
     command = [
         sys.executable, "-u", str(HIER / "run_gated_fir_mic_posthoc.py"),
-        "--data-dir", str(args.data_dir), "--dataset", args.dataset,
+        "--data-dir", str(data_dir), "--dataset", args.dataset,
         "--seed", str(args.seed), "--batch-size", str(args.batch_size),
         "--run-dir", str(output_dir), "--output-dir", str(gated_output),
         "--device", "cuda",
