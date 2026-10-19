@@ -5,3 +5,4 @@ results/
 kaggle_runs/
 .ipynb_checkpoints/
 kaggle_output/
+.pytest_tmp_audit*/
