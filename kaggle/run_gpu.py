@@ -41,6 +41,7 @@ def run(command):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     parser.add_argument("--datasets", nargs="+", default=["baby"])
     parser.add_argument("--seeds", nargs="+", type=int, default=[2022])
     parser.add_argument("--epochs", type=int, default=20)
@@ -73,8 +74,12 @@ def main():
         raise RuntimeError("Kaggle GPU is not enabled")
     print("GPU", torch.cuda.get_device_name(0), "Torch", torch.__version__)
     data = resolve_mmrec(args.data_dir)
-    out = ROOT / "results"
-    out.mkdir(exist_ok=True)
+    out = args.output_dir.resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    # Do this before running or overwriting any baseline artifacts.
+    for path in (out / "fir_mic").glob("*/seed_*/optimal_config.json"):
+        if json.loads(path.read_text(encoding="utf8")).get("grid_search_version", 1) != 2:
+            raise RuntimeError("Output contains legacy FIR-MIC results. Pass --output-dir results_v2 for the corrected experiment.")
 
     audit = json.loads((ROOT / "github_baselines_manifest.json").read_text())
     (out / "baseline_source_audit.json").write_text(json.dumps(audit, indent=2))
@@ -86,6 +91,8 @@ def main():
             sys.executable, "run_mmrec_seq_scl.py", "--data-dir", data,
             "--datasets", *args.datasets, "--models", "static", "multi-item", "multi-cluster",
             "--seeds", *args.seeds, "--epochs", args.epochs, "--device", "cuda",
+            "--image-reduced-dim", 0, "--batch-size", args.batch_size,
+            "--validation-users-for-checkpoint", 0,
             "--output-dir", out / "controlled_content", "--resume",
         ])
 
@@ -98,10 +105,8 @@ def main():
     for dataset in args.datasets:
         for seed in args.seeds:
             run_dir = out / "fir_mic" / dataset / f"seed_{seed}"
-            if (args.resume and (run_dir / "result.json").exists()
-                    and (run_dir / "optimal_config.json").exists()):
-                print("Resume: completed FIR-MIC run exists at", run_dir, flush=True)
-                continue
+            # The inner runner validates source/data/config fingerprints before
+            # reusing search trials; file existence alone is not a run identity.
             run([
                 sys.executable, "hier_bridge/run_fir_mic_seed.py",
                 "--data-dir", data, "--dataset", dataset, "--seed", seed,

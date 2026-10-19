@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import itertools
 import json
 import math
@@ -25,7 +26,7 @@ from torch.utils.data import DataLoader
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-GRID_SEARCH_VERSION = 1
+GRID_SEARCH_VERSION = 2
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "acrg_apr_github"))
@@ -44,8 +45,11 @@ from run_soft_intent_bridge_v2_seed import (
 
 class FIRMIC(Model):
     def __init__(self, image, text, teacher, k, d=64, maxlen=10, modality="full",
-                 dropout=0.15, router_dropout=0.10):
+                 dropout=0.15, router_dropout=0.10, implementation_version=2):
+        if k < 2:
+            raise ValueError("FIR-MIC requires at least two intents")
         super().__init__(image, text, teacher, k, d, maxlen, modality=modality, dropout=dropout)
+        self.implementation_version = implementation_version
         self.router = torch.nn.Sequential(
             torch.nn.Linear(5, 16),
             torch.nn.ReLU(),
@@ -73,6 +77,8 @@ class FIRMIC(Model):
             valid_pair = (~mask[:, 1:]) & (~mask[:, :-1])
             pair_sim = (q_hist[:, 1:] * q_hist[:, :-1]).sum(-1)
             repetition = (pair_sim * valid_pair).sum(-1) / valid_pair.sum(-1).clamp_min(1)
+            if self.implementation_version >= 2:
+                repetition = torch.where(valid_pair.any(-1), repetition, torch.ones_like(repetition))
         else:
             repetition = torch.ones_like(cosine)
         features = torch.stack([cosine, entropy_f, entropy_c, shift, repetition], -1)
@@ -87,7 +93,22 @@ class FIRMIC(Model):
 
 
 def row_z(x):
-    return (x - x.mean(1, keepdim=True)) / x.std(1, keepdim=True).clamp_min(1e-5)
+    # Match numpy's population std at inference, including singleton batches.
+    return (x - x.mean(1, keepdim=True)) / x.std(1, keepdim=True, unbiased=False).clamp_min(1e-6)
+
+
+def batch_rank_loss(scores, target, tau=0.10):
+    """Treat repeated target IDs as positives, not false in-batch negatives."""
+    positive = target[:, None].eq(target[None, :])
+    logits = scores / tau
+    return (torch.logsumexp(logits, dim=1) -
+            torch.logsumexp(logits.masked_fill(~positive, -torch.inf), dim=1)).mean()
+
+
+def router_stay_target(current, target_q):
+    # A dot product of diffuse probability vectors tends to 1/K even when
+    # identical. Cosine gives identical interests a stay target of one.
+    return F.cosine_similarity(current.detach(), target_q.detach(), dim=-1).clamp(0, 1)
 
 
 def train_model(model, samples, image, text, epochs, batch_size, seed, device,
@@ -114,12 +135,11 @@ def train_model(model, samples, image, text, epochs, batch_size, seed, device,
             anchor = raw_anchor(p, lengths, target, image, text, model.modality)
             fine_residual = fine - anchor
             score = row_z(anchor) + .10 * row_z(routed) + .10 * row_z(next_score) + .20 * row_z(fine_residual)
-            labels = torch.arange(len(target), device=device)
-            rank_loss = F.cross_entropy(score / .10, labels)
+            rank_loss = batch_rank_loss(score, target)
 
             target_q = q_target.detach()
             next_loss = -(target_q * torch.log(future + 1e-9)).sum(-1).mean()
-            stay_label = (current.detach() * target_q).sum(-1).clamp(0, 1)
+            stay_label = router_stay_target(current, target_q)
             route_loss = F.binary_cross_entropy(route, stay_label)
             teacher_loss = F.kl_div(
                 torch.log(model.item_q(target) + 1e-9), model.teacher[target], reduction="batchmean"
@@ -138,7 +158,11 @@ def train_model(model, samples, image, text, epochs, batch_size, seed, device,
             "route_loss": float(np.mean(route_losses)),
         }
         if epoch_callback is not None:
-            validation = epoch_callback(model, epoch)
+            # Validation DataLoader construction and callbacks must not alter
+            # the dropout RNG stream used by the fresh confirmatory fit.
+            cuda_devices = [next(model.parameters()).device.index] if next(model.parameters()).is_cuda else []
+            with torch.random.fork_rng(devices=cuda_devices):
+                validation = epoch_callback(model, epoch)
             row.update({f"validation_{key}": value for key, value in validation.items()})
             key = (
                 validation["NDCG@10"], validation["Recall@10"],
@@ -162,7 +186,8 @@ def make_cache(model, samples, candidates, image, text, batch_size, device):
     candidate_tensor = torch.tensor(candidates, device=device)
     lookup = {item: pos for pos, item in enumerate(candidates)}
     rows = []
-    loader = DataLoader(DS(samples), batch_size=batch_size, collate_fn=collate)
+    loader = DataLoader(DS(samples), batch_size=batch_size, collate_fn=collate,
+                        generator=torch.Generator().manual_seed(0))
     for p, lengths, _, source_rows in loader:
         p, lengths = p.to(device), lengths.to(device)
         current, future, route, stay, switch, routed, next_score, fine, q_c = \
@@ -170,7 +195,7 @@ def make_cache(model, samples, candidates, image, text, batch_size, device):
         anchor = raw_anchor(p, lengths, candidate_tensor, image, text, model.modality)
         for j, source in enumerate(source_rows):
             pos = lookup[source.target]
-            true_stay = float((current[j] * q_c[pos]).sum().cpu())
+            true_stay = float(router_stay_target(current[j], q_c[pos]).cpu()) if model.implementation_version >= 2 else float((current[j] * q_c[pos]).sum().cpu())
             rows.append({
                 "sample": source, "target_pos": pos,
                 "anchor": anchor[j].cpu().numpy(),
@@ -392,6 +417,17 @@ def reset_random_state(seed):
 def grid_search(args, image_np, text_np, image, text, warm, pseudo_train,
                 validation, validation_cold, device):
     """Select architecture, optimizer and epoch using validation only."""
+    digest = hashlib.sha256()
+    for array in (image_np, text_np):
+        digest.update(str((array.shape, array.dtype)).encode())
+        digest.update(np.ascontiguousarray(array).tobytes())
+    digest.update(repr((sorted(warm), sorted(validation_cold), pseudo_train, validation)).encode())
+    for source in (__file__, ROOT / "run_mmrec_seq_scl.py",
+                   HERE / "run_soft_intent_bridge_v2_seed.py", HERE / "run_intent_interpolation_seed.py"):
+        digest.update(Path(source).read_bytes())
+    search_identity = {"seed": args.seed, "epochs": args.epochs,
+                       "batch_size": args.batch_size, "patience": args.grid_patience,
+                       "input_and_source_sha256": digest.hexdigest()}
     combinations = list(itertools.product(
         args.grid_intents, args.grid_dims, args.grid_learning_rates,
         args.grid_weight_decays, args.grid_dropouts, args.grid_router_dropouts,
@@ -415,6 +451,7 @@ def grid_search(args, image_np, text_np, image, text, warm, pseudo_train,
             except (json.JSONDecodeError, OSError):
                 saved = {}
             if (saved.get("version") == GRID_SEARCH_VERSION
+                    and saved.get("search_identity") == search_identity
                     and saved.get("parameters") == fixed):
                 epoch_rows.extend(saved["epochs"])
                 trial_rows.append(saved["summary"])
@@ -477,6 +514,7 @@ def grid_search(args, image_np, text_np, image, text, warm, pseudo_train,
         trial_rows.append(trial_summary)
         trial_checkpoint.write_text(json.dumps({
             "version": GRID_SEARCH_VERSION,
+            "search_identity": search_identity,
             "parameters": fixed, "epochs": current_epoch_rows,
             "summary": trial_summary,
         }, indent=2), encoding="utf8")
@@ -500,6 +538,7 @@ def grid_search(args, image_np, text_np, image, text, warm, pseudo_train,
     }
     optimal["selection_split"] = "validation only"
     optimal["grid_search_version"] = GRID_SEARCH_VERSION
+    optimal["search_identity"] = search_identity
     optimal["selection_metric"] = "lexicographic NDCG@10, Recall@10, MRR@10; earlier epoch tie-break"
     optimal["search_max_epochs"] = args.epochs
     optimal["grid_patience"] = args.grid_patience
@@ -615,13 +654,18 @@ def main():
         parser.error("--grid-patience cannot be negative")
     if any(dim <= 0 or dim % 4 for dim in args.grid_dims):
         parser.error("every --grid-dims value must be positive and divisible by 4")
-    if any(value <= 0 for value in args.grid_intents + args.grid_learning_rates):
+    if any(value < 2 for value in args.grid_intents) or any(value <= 0 for value in args.grid_learning_rates):
         parser.error("intent counts and learning rates must be positive")
     if any(value < 0 for value in args.grid_weight_decays):
         parser.error("weight decays cannot be negative")
     if any(not 0 <= value < 1 for value in args.grid_dropouts + args.grid_router_dropouts):
         parser.error("dropout values must be in [0, 1)")
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    previous_result = args.output_dir / "result.json"
+    if previous_result.exists():
+        previous = json.loads(previous_result.read_text(encoding="utf8"))
+        if previous.get("optimal_config", {}).get("grid_search_version", 1) != GRID_SEARCH_VERSION:
+            raise RuntimeError("Existing results use a different implementation. Use a new --output-dir to preserve the previous experiment.")
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 
     data_root = args.data_dir / args.dataset

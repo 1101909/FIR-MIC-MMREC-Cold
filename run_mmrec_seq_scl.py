@@ -233,13 +233,16 @@ def leakage_checks(
 def load_features(root: Path, config: Config):
     image = np.load(root / "image_feat.npy", mmap_mode="r")
     text = np.load(root / "text_feat.npy", mmap_mode="r")
-    if image.shape[1] % config.image_reduced_dim:
+    if config.image_reduced_dim < 0:
+        raise ValueError("image_reduced_dim must be non-negative")
+    if config.image_reduced_dim and image.shape[1] % config.image_reduced_dim:
         raise ValueError("Image dimension is not divisible by requested reduced dim")
-    block = image.shape[1] // config.image_reduced_dim
+    reduced_dim = config.image_reduced_dim or image.shape[1]
+    block = image.shape[1] // reduced_dim
     # The same deterministic reduction is applied to every item and has no
     # item-specific parameters.
     image_reduced = np.asarray(image, dtype=np.float32).reshape(
-        image.shape[0], config.image_reduced_dim, block
+        image.shape[0], reduced_dim, block
     ).mean(axis=2)
     image_tensor = F.normalize(torch.from_numpy(image_reduced), dim=1)
     text_tensor = F.normalize(
@@ -534,7 +537,7 @@ def evaluate(
             else None
         )
         scores = model.score_candidates(image_state, text_state, candidate_tensor)
-        order = torch.argsort(scores, dim=1, descending=True)
+        order = torch.argsort(scores, dim=1, descending=True, stable=True)
         for row_index, (user, target) in enumerate(
             zip(batch["users"], batch["targets"].tolist())
         ):
@@ -608,7 +611,8 @@ def train_model(
         generator=generator,
         collate_fn=collate,
     )
-    validation_subset = validation_samples[: config.validation_users_for_checkpoint]
+    validation_subset = (validation_samples[: config.validation_users_for_checkpoint]
+                         if config.validation_users_for_checkpoint else validation_samples)
     best_state, best_epoch, best_ndcg = None, None, -1.0
     epoch_rows, gradient_check = [], None
     completed_epoch, previous_seconds = 0, 0.0
@@ -1152,6 +1156,11 @@ def main():
     )
     parser.add_argument("--seeds", nargs="+", type=int, default=[2022, 2023, 2025])
     parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--image-reduced-dim", type=int, default=256,
+                        help="0 preserves all image coordinates; 256 is the legacy baseline")
+    parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--validation-users-for-checkpoint", type=int, default=2000,
+                        help="0 uses all validation samples")
     parser.add_argument(
         "--models",
         nargs="+",
@@ -1197,6 +1206,9 @@ def main():
     config = Config(
         seeds=tuple(args.seeds),
         epochs=args.epochs,
+        image_reduced_dim=args.image_reduced_dim,
+        batch_size=args.batch_size,
+        validation_users_for_checkpoint=args.validation_users_for_checkpoint,
         device=args.device,
         interest_clusters=args.interest_clusters,
         interest_aggregation_tau=args.interest_aggregation_tau,
@@ -1204,6 +1216,8 @@ def main():
     )
     if config.interest_clusters < 1:
         parser.error("--interest-clusters must be at least 1")
+    if config.image_reduced_dim < 0 or config.batch_size < 1 or config.validation_users_for_checkpoint < 0:
+        parser.error("Feature dimension and validation limit must be non-negative; batch size must be positive")
     if config.interest_aggregation_tau <= 0:
         parser.error("--interest-aggregation-tau must be positive")
     if config.cluster_iterations < 1:

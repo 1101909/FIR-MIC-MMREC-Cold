@@ -24,7 +24,7 @@ HIER = ROOT / "hier_bridge"
 sys.path.insert(0, str(HIER))
 sys.path.insert(0, str(ROOT))
 
-from run_fir_mic_seed import FIRMIC, reset_random_state, teacher_for_modality, train_model
+from run_fir_mic_seed import FIRMIC, GRID_SEARCH_VERSION, reset_random_state, teacher_for_modality, train_model
 from run_intent_interpolation_seed import l2_blocks
 from run_mmrec_seq_scl import Config, build_samples, leakage_checks, read_interactions, temporal_item_split
 from run_soft_intent_bridge_v2_seed import pseudo_cold
@@ -99,6 +99,8 @@ def main():
     results_ref = f"origin/{args.results_branch}"
     artifact_root = f"results/fir_mic/{args.dataset}/seed_{args.seed}"
     optimal = git_json(results_ref, f"{artifact_root}/optimal_config.json")
+    if optimal.get("grid_search_version", 1) != GRID_SEARCH_VERSION:
+        raise RuntimeError("Locked logs use an older training implementation. Rebuild with that source revision, or run a fresh v2 validation search in a new output directory.")
     locked = optimal.get("locked_score_weights")
     required = {
         "intents", "dim", "learning_rate", "weight_decay", "dropout",

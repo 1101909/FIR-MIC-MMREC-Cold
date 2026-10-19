@@ -128,7 +128,8 @@ def select_gate(rows: list[dict], args):
     baseline_hard = subset_metrics(baseline_ranks, hard)
     baseline_easy = subset_metrics(baseline_ranks, easy)
     baseline_row = {
-        "mode": "original", "w1": "", "w2": "", "bias": "", "eligible": 1,
+        # sigmoid(0)=.5 reproduces original ranking by positive scaling.
+        "mode": "original", "w1": 0.0, "w2": 0.0, "bias": 0.0, "eligible": 1,
         "mean_target_alpha": "",
         **prefixed("overall", baseline_all),
         **prefixed("hard_proxy", baseline_hard),
@@ -156,7 +157,7 @@ def select_gate(rows: list[dict], args):
         if eligible:
             eligible_rows.append(row)
 
-    candidates = eligible_rows or grid_rows[1:]
+    candidates = [baseline_row] + eligible_rows
     best = max(candidates, key=lambda row: (
         row["hard_proxy_NDCG@10"], row["hard_proxy_Recall@10"],
         row["hard_proxy_MRR@10"], row["hard_proxy_NDCG@20"],
@@ -194,6 +195,7 @@ def load_checkpoint_model(checkpoint_path: Path, optimal: dict, image, text, dev
         image, text, teacher, optimal["intents"], optimal["dim"], 10,
         modality="full", dropout=optimal["dropout"],
         router_dropout=optimal["router_dropout"],
+        implementation_version=optimal.get("grid_search_version", 1),
     ).to(device)
     incompatible = model.load_state_dict(state, strict=False)
     if set(incompatible.missing_keys) != data_buffers or incompatible.unexpected_keys:

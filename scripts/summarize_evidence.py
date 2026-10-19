@@ -96,6 +96,9 @@ def gains(summary):
 
 
 def holm(pvalues):
+    pvalues = np.asarray(pvalues, dtype=float)
+    if not np.isfinite(pvalues).all() or np.any((pvalues < 0) | (pvalues > 1)):
+        raise ValueError("Holm requires finite p-values in [0, 1]")
     order = np.argsort(pvalues); adjusted = np.empty(len(pvalues)); running = 0.0
     for rank, index in enumerate(order):
         value = min(1.0, (len(pvalues) - rank) * pvalues[index])
@@ -105,6 +108,8 @@ def holm(pvalues):
 
 def paired_significance(raw_rows, baseline):
     index = {(row["dataset"], row["seed"], row["model"]): row for row in raw_rows}
+    if len(index) != len(raw_rows):
+        raise ValueError("Duplicate dataset/seed/model results; cannot form unambiguous pairs")
     tests = []
     datasets = sorted({row["dataset"] for row in raw_rows})
     for dataset in datasets:
@@ -114,18 +119,21 @@ def paired_significance(raw_rows, baseline):
                      for seed in seeds if (dataset, seed, PRIMARY) in index and (dataset, seed, baseline) in index]
             if len(pairs) < 2: continue
             proposed, reference = map(np.asarray, zip(*pairs)); delta = proposed - reference
+            if not np.isfinite(delta).all():
+                raise ValueError("Non-finite metrics in paired significance input")
             mean = float(delta.mean()); sd = float(delta.std(ddof=1)); se = sd / math.sqrt(len(delta))
             half = float(stats.t.ppf(0.975, len(delta) - 1) * se)
-            try: wilcoxon_p = float(stats.wilcoxon(delta, alternative="two-sided").pvalue)
+            try: wilcoxon_p = float(stats.wilcoxon(delta, alternative="two-sided").pvalue) if np.any(delta) else 1.0
             except ValueError: wilcoxon_p = 1.0
             pooled = math.sqrt((proposed.var(ddof=1) + reference.var(ddof=1)) / 2)
             tests.append({
                 "dataset": dataset, "baseline": baseline, "metric": metric, "n_seeds": len(delta),
-                "mean_paired_difference": mean, "relative_improvement_pct": 100 * mean / reference.mean(),
+                "mean_paired_difference": mean, "relative_improvement_pct": 100 * mean / reference.mean() if reference.mean() else float("nan"),
                 "std_paired_difference": sd, "ci95_low": mean - half, "ci95_high": mean + half,
-                "paired_t_p": float(stats.ttest_rel(proposed, reference).pvalue),
-                "wilcoxon_p": wilcoxon_p, "effect_size_cohens_dz": mean / sd if sd else float("inf"),
-                "effect_size_pooled_sd": mean / pooled if pooled else float("inf"),
+                "paired_t_p": float(stats.ttest_rel(proposed, reference).pvalue) if sd else (1.0 if mean == 0 else 0.0),
+                "wilcoxon_p": wilcoxon_p, "effect_size_cohens_dz": mean / sd if sd else (0.0 if mean == 0 else math.copysign(float("inf"), mean)),
+                "effect_size_pooled_sd": mean / pooled if pooled else (0.0 if mean == 0 else math.copysign(float("inf"), mean)),
+                "scope": "training-seed variability conditional on one fixed data split",
             })
     if tests:
         for field in ("paired_t_p", "wilcoxon_p"):

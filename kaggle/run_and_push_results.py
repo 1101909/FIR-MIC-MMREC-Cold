@@ -25,7 +25,7 @@ import sys
 REPOSITORY = "1101909/FIR-MIC-MMREC-Cold"
 SOURCE_BRANCH = "agent/fix-semco-evaluator"
 # Keep grid-search results separate from legacy/non-tuned result artifacts.
-RESULTS_BRANCH = "kaggle-results-gridsearch-v1"
+RESULTS_BRANCH = "kaggle-results-gridsearch-v2"
 
 DATA_DIR = "/kaggle/input/datasets/toanktx/mmrec-cold"
 REPO_DIR = Path("/kaggle/working/FIR-MIC-MMREC-Cold")
@@ -160,6 +160,7 @@ run([
 ], cwd=REPO_DIR)
 
 run_configuration = {
+    "fir_mic_implementation_version": 2,
     "source_branch": SOURCE_BRANCH,
     "source_commit": source_commit,
     "baseline_epochs": BASELINE_EPOCHS,
@@ -180,14 +181,13 @@ run_configuration = {
 def experiment_configuration(configuration):
     """Return only fields that affect experimental results.
 
-    Source revisions are retained in each marker for provenance, but a runner
-    bug fix must not invalidate completed seeds when all experimental settings
-    remain identical.  Markers created before ``semco_batch_size`` existed used
+    Source revisions are part of run identity: training bug fixes invalidate
+    previous seeds even when numeric settings remain identical. Markers
+    created before ``semco_batch_size`` existed used
     the shared batch size for SEMCo, so normalize that legacy representation.
     """
     normalized = dict(configuration)
     normalized.pop("source_branch", None)
-    normalized.pop("source_commit", None)
     normalized.setdefault("semco_batch_size", normalized.get("batch_size"))
     return normalized
 

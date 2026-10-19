@@ -47,11 +47,13 @@ For a resumable multi-session run that automatically commits JSON/CSV results
 to GitHub after every completed dataset/seed, paste the complete contents of
 `kaggle/run_and_push_results.py` into one Kaggle cell. Add a private Kaggle
 Secret named `GITHUB_TOKEN` first; it needs Contents read/write access to this
-repository. Results are pushed to `kaggle-results-gridsearch-v1`, while large
-`.pt` files remain only in the Kaggle working directory. Re-running the same
-cell safely skips completed dataset/seed pairs and continues the first
-unfinished pair on that same results branch, provided experimental
-hyperparameters have not changed.
+repository. Corrected v2 results are pushed to
+`kaggle-results-gridsearch-v2`, while large `.pt` files remain only in the
+Kaggle working directory. Re-running the same cell safely skips completed
+dataset/seed pairs and continues the first unfinished pair only when the
+experimental settings, source revision, data fingerprint, and implementation
+version still match. The v1 result branch is immutable historical evidence and
+is never resumed into the v2 series.
 
 Official submodules are audit sources and are not required for FIR-MIC itself.
 Initialize only an eligible baseline when it is actually scheduled, for example:
@@ -68,6 +70,23 @@ python kaggle/run_gpu.py --datasets baby --seeds 2022 --epochs 1 --batch-size 25
 
 ## FIR-MIC hyperparameter and epoch selection
 
+### Published v1 provenance
+
+The complete Baby, Clothing, and Sports results archived on
+`kaggle-results-gridsearch-v1` were generated with FIR-MIC implementation v1.
+Completion markers record source commit `a94b85d` for 29 runs and `f68c1c1`
+for Sports seed 2031. The FIR-MIC model, router, split, and selection code is
+identical between those revisions; `f68c1c1` only changes the launcher, resume
+compatibility, and SEMCo batch-size plumbing. Thus `a94b85d` is the canonical
+source snapshot for reproducing v1 FIR-MIC, while each completion marker is the
+authoritative provenance record for its run.
+
+Implementation v2 deliberately starts a new result branch and output
+directory. It fixes the router target and singleton-history feature,
+duplicate-target InfoNCE, score standardization, validation RNG isolation, and
+resume identity. V1 checkpoints or search trials must not be relabelled or
+resumed as v2.
+
 For every dataset and seed, FIR-MIC evaluates the Cartesian product supplied by
 the `--grid-*` arguments. `--epochs` is the maximum epoch considered in each
 trial, and `--grid-patience` stops a trial after consecutive epochs without an
@@ -83,6 +102,10 @@ Neither cold test interactions nor test metrics are accessed during this
 search. After selecting the hyperparameters and epoch, the runner creates a new
 model from the same deterministic seed, retrains it for exactly `best_epoch`,
 locks the score-level weights on validation, and evaluates the test split once.
+The v2 search fingerprint covers source files, feature arrays, warm/validation
+item sets, samples, seed, epoch ceiling, batch size, and patience. A mismatch
+forces a fresh search instead of silently routing an old trial into a new
+experiment.
 Each `results/fir_mic/<dataset>/seed_<seed>/` directory contains:
 
 - `hyperparameter_grid.csv`: every evaluated trial/epoch and validation score;
