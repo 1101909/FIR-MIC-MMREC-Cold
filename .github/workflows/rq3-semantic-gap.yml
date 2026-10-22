@@ -1,0 +1,53 @@
+name: FIR-MIC RQ3 Semantic Gap 0.1-0.9
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rq3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout results branch
+        uses: actions/checkout@v4
+        with:
+          ref: kaggle-results-gridsearch-v1
+          persist-credentials: true
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt kaggle
+      - name: Download MMRec features from Kaggle
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          test -n "$KAGGLE_USERNAME" && test -n "$KAGGLE_KEY" || { echo "Configure KAGGLE_USERNAME and KAGGLE_KEY secrets"; exit 1; }
+          mkdir -p mmrec-cold
+          kaggle datasets download -d toanktx/mmrec-cold -p mmrec-cold --unzip
+          test -f mmrec-cold/baby/image_feat.npy
+          test -f mmrec-cold/baby/text_feat.npy
+      - name: Recompute quartiles and upload results
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/recompute_rq3_01_09.py \
+            --data-dir mmrec-cold \
+            --results-dir results \
+            --out-dir results/rq3_01_09 \
+            --push-github
+      - name: Upload files as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fir-mic-rq3-01-09
+          path: results/rq3_01_09/
+          if-no-files-found: ignore
