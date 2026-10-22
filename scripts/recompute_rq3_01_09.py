@@ -58,6 +58,7 @@ def upload_results(out_dir, repo, branch):
             raise RuntimeError("Missing GITHUB_TOKEN: add Kaggle Secret GITHUB_TOKEN or environment variable") from exc
     if not token:
         raise RuntimeError("GITHUB_TOKEN is empty")
+    token = token.removeprefix("Bearer ").removeprefix("token ").strip()
     expected = [
         "semantic_gap_assignments_01_09.csv",
         "rq3_01_09_by_seed.csv",
@@ -80,6 +81,15 @@ def upload_results(out_dir, repo, branch):
             "User-Agent": "firmic-rq3-kaggle"})
         with urllib.request.urlopen(req, timeout=90) as response:
             return json.load(response)
+    # Check authentication before attempting any writes.
+    import urllib.error
+    try:
+        auth = request("https://api.github.com/user")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            raise RuntimeError("GitHub returned HTTP 401: Kaggle GITHUB_TOKEN is invalid, expired, or revoked. Replace the secret with a valid GitHub Personal Access Token.") from None
+        raise
+    print(f"Authenticated to GitHub as {auth.get('login', '<unknown>')}", flush=True)
     for name in expected:
         url = api_root + "/" + name + "?ref=" + branch
         import urllib.error
@@ -95,19 +105,32 @@ def upload_results(out_dir, repo, branch):
                    "branch": branch}
         if sha:
             payload["sha"] = sha
-        result = request(api_root + "/" + name, "PUT", payload)
+        try:
+            result = request(api_root + "/" + name, "PUT", payload)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 403:
+                raise RuntimeError("GitHub HTTP 403: token lacks Contents write permission for repository, or branch rules block writes.") from None
+            if exc.code == 401:
+                raise RuntimeError("GitHub HTTP 401: invalid or expired GITHUB_TOKEN.") from None
+            raise
         print(f"Uploaded {name}: commit {result['commit']['sha'][:12]}", flush=True)
     print(f"All RQ3 files uploaded to https://github.com/{repo}/tree/{branch}/results/rq3_01_09", flush=True)
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", type=Path)
+    ap.add_argument("--upload-only", action="store_true", help="Upload existing RQ3 outputs without recomputing")
     ap.add_argument("--push-github", action="store_true", help="Commit and push generated outputs to GitHub")
     ap.add_argument("--github-branch", default="kaggle-results-gridsearch-v1")
     ap.add_argument("--github-repo", default="1101909/FIR-MIC-MMREC-Cold")
     ap.add_argument("--results-dir", type=Path, default=Path("results"))
     ap.add_argument("--out-dir", type=Path, default=Path("results/rq3_01_09"))
     args = ap.parse_args()
+    if args.upload_only:
+        if not args.push_github:
+            raise ValueError("--upload-only requires --push-github")
+        upload_results(args.out_dir, args.github_repo, args.github_branch)
+        return
     data_dir = resolve_data_dir(args.data_dir)
     sys.path.insert(0, str(Path.cwd()))
     sys.path.insert(0, str(Path.cwd() / "acrg_apr_github"))
