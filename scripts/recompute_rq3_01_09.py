@@ -7,6 +7,10 @@ import argparse
 import csv
 import math
 import sys
+import os
+import subprocess
+import tempfile
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -42,9 +46,65 @@ def resolve_data_dir(request):
     raise FileNotFoundError("Cannot locate MMRec arrays for baby/sports/clothing. "
                             "Attach Kaggle dataset toanktx/mmrec-cold, or pass --data-dir.")
 
+
+def upload_results(out_dir, repo, branch):
+    """Upload only four generated RQ3 artifacts; never expose the GitHub token."""
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        try:
+            from kaggle_secrets import UserSecretsClient
+            token = UserSecretsClient().get_secret("GITHUB_TOKEN").strip()
+        except Exception as exc:
+            raise RuntimeError("Missing GITHUB_TOKEN: add Kaggle Secret GITHUB_TOKEN or environment variable") from exc
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN is empty")
+    expected = [
+        "semantic_gap_assignments_01_09.csv",
+        "rq3_01_09_by_seed.csv",
+        "rq3_01_09_summary.csv",
+        "rq3_01_09_table.tex",
+    ]
+    for name in expected:
+        if not (out_dir / name).is_file():
+            raise FileNotFoundError(out_dir / name)
+    import urllib.request
+    import json
+    import base64
+    api_root = f"https://api.github.com/repos/{repo}/contents/results/rq3_01_09"
+    def request(url, method="GET", payload=None):
+        data = json.dumps(payload).encode() if payload is not None else None
+        req = urllib.request.Request(url, data=data, method=method, headers={
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "firmic-rq3-kaggle"})
+        with urllib.request.urlopen(req, timeout=90) as response:
+            return json.load(response)
+    for name in expected:
+        url = api_root + "/" + name + "?ref=" + branch
+        import urllib.error
+        try:
+            existing = request(url)
+            sha = existing["sha"]
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                raise
+            sha = None
+        payload = {"message": "Update RQ3 0.1/0.9 quartile results: " + name,
+                   "content": base64.b64encode((out_dir / name).read_bytes()).decode("ascii"),
+                   "branch": branch}
+        if sha:
+            payload["sha"] = sha
+        result = request(api_root + "/" + name, "PUT", payload)
+        print(f"Uploaded {name}: commit {result['commit']['sha'][:12]}", flush=True)
+    print(f"All RQ3 files uploaded to https://github.com/{repo}/tree/{branch}/results/rq3_01_09", flush=True)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", type=Path)
+    ap.add_argument("--push-github", action="store_true", help="Commit and push generated outputs to GitHub")
+    ap.add_argument("--github-branch", default="kaggle-results-gridsearch-v1")
+    ap.add_argument("--github-repo", default="1101909/FIR-MIC-MMREC-Cold")
     ap.add_argument("--results-dir", type=Path, default=Path("results"))
     ap.add_argument("--out-dir", type=Path, default=Path("results/rq3_01_09"))
     args = ap.parse_args()
@@ -151,6 +211,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     (out/"rq3_01_09_table.tex").write_text("\n".join(lines)+"\n", encoding="utf-8")
     print(f"Results written to {out.resolve()}", flush=True)
+    if args.push_github:
+        upload_results(out, args.github_repo, args.github_branch)
 
 if __name__ == "__main__":
     main()
