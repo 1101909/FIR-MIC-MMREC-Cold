@@ -126,23 +126,28 @@ def main():
     write_csv(out / "semantic_gap_assignments_01_09.csv", all_assignments)
     write_csv(out / "rq3_01_09_by_seed.csv", by_seed)
     write_csv(out / "rq3_01_09_summary.csv", summary)
-    lines = [r"\\begin{table*}[!t]", r"\\centering\\footnotesize",
-             r"\\setlength{\\tabcolsep}{4pt}",
-             r"\\caption{Khoảng cách ngữ nghĩa và chất lượng xếp hạng FIR-MIC theo các nhóm tứ phân vị (trọng số hình ảnh/văn bản $0.1/0.9$), trung bình 10 seed.}",
-             r"\\label{tab:rq3_semantic_gap}", r"\\resizebox{\\textwidth}{!}{%",
-             r"\\begin{tabular}{@{}llrrrrrrrrr@{}}", r"\\toprule",
-             r"Bộ dữ liệu & Nhóm & $n$ & $g_{\\min}$ & $g_{\\max}$ & $\\overline{g}$ & R@10 & R@20 & R@50 & R@100 & N@20\\\\",
-             r"\\midrule"]
+    lines = [
+        r"\begin{table*}[!t]",
+        r"\centering\footnotesize",
+        r"\setlength{\tabcolsep}{4pt}",
+        r"\caption{Khoảng cách ngữ nghĩa và chất lượng xếp hạng FIR-MIC theo các nhóm tứ phân vị (trọng số hình ảnh/văn bản $0.1/0.9$), trung bình 10 seed.}",
+        r"\label{tab:rq3_semantic_gap}",
+        r"\resizebox{\textwidth}{!}{%",
+        r"\begin{tabular}{@{}llrrrrrrrrr@{}}",
+        r"\toprule",
+        r"Bộ dữ liệu & Nhóm & $n$ & $g_{\min}$ & $g_{\max}$ & $\overline{g}$ & R@10 & R@20 & R@50 & R@100 & N@20\\",
+        r"\midrule",
+    ]
     for dataset in DATASETS:
         if dataset != "baby":
-            lines.append(r"\\midrule")
+            lines.append(r"\midrule")
         for i, s in enumerate(r for r in summary if r["dataset"] == dataset):
-            name = r"\\multirow{4}{*}{" + dataset.title() + "}" if i == 0 else ""
-            cells = [name, "$"+s["quartile"]+"$", str(s["n"]),
-                     *(f'{s[k]:.4f}' for k in ("g_min","g_max","g_mean")),
-                     *(f'{s[k+"_mean"]:.5f}' for k in METRICS)]
-            lines.append(" & ".join(cells) + r"\\\\")
-    lines += [r"\\bottomrule",r"\\end{tabular}%",r"}",r"\\end{table*}"]
+            name = r"\multirow{4}{*}{" + dataset.title() + "}" if i == 0 else ""
+            cells = [name, "$" + s["quartile"] + "$", str(s["n"])]
+            cells += [format(s[k], ".4f") for k in ("g_min", "g_max", "g_mean")]
+            cells += [format(s[k + "_mean"], ".5f") for k in METRICS]
+            lines.append(" & ".join(cells) + r"\\")
+    lines += [r"\bottomrule", r"\end{tabular}%", r"}", r"\end{table*}"]
     out.mkdir(parents=True, exist_ok=True)
     (out/"rq3_01_09_table.tex").write_text("\n".join(lines)+"\n", encoding="utf-8")
     print(f"Results written to {out.resolve()}", flush=True)
